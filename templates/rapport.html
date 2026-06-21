@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TLS Analyser — Exporter Rapport</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0d1117; color: #c9d1d9; font-family: 'Segoe UI', sans-serif; display: flex; }
+        .sidebar { width: 220px; min-height: 100vh; background: #161b22; border-right: 1px solid #30363d; padding: 20px 0; position: fixed; }
+        .sidebar .logo { color: #58a6ff; font-size: 18px; font-weight: bold; padding: 0 20px 20px 20px; border-bottom: 1px solid #30363d; }
+        .sidebar .logo span { color: #8b949e; font-size: 11px; display: block; font-weight: normal; }
+        .sidebar .section-title { color: #8b949e; font-size: 11px; padding: 20px 20px 8px 20px; text-transform: uppercase; letter-spacing: 1px; }
+        .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 20px; color: #8b949e; text-decoration: none; font-size: 14px; transition: all 0.2s; }
+        .sidebar a:hover, .sidebar a.active { background: #21262d; color: #c9d1d9; border-left: 3px solid #58a6ff; }
+        .sidebar .admin-info { position: absolute; bottom: 20px; padding: 0 20px; display: flex; align-items: center; gap: 10px; }
+        .sidebar .admin-avatar { width: 32px; height: 32px; background: #58a6ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; color: white; }
+        .main { margin-left: 220px; flex: 1; padding: 24px; }
+        .header { margin-bottom: 24px; }
+        .header h1 { font-size: 20px; color: #c9d1d9; font-weight: 600; }
+        .header p { color: #8b949e; font-size: 13px; margin-top: 6px; }
+        .section { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; }
+        .section h2 { font-size: 15px; margin-bottom: 16px; color: #c9d1d9; }
+        .scan-item { display: flex; align-items: center; gap: 16px; padding: 14px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 10px; }
+        .scan-item:hover { border-color: #58a6ff; }
+        .scan-info { flex: 1; }
+        .scan-cible { color: #58a6ff; font-size: 14px; font-weight: 500; }
+        .scan-date { color: #8b949e; font-size: 12px; margin-top: 2px; }
+        .badge-termine { background: #1a4a1a; color: #3fb950; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
+        .btn-pdf { background: #238636; border: none; color: white; padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; text-decoration: none; display: flex; align-items: center; gap: 6px; transition: background 0.2s; }
+        .btn-pdf:hover { background: #2ea043; color: white; }
+        .empty-state { text-align: center; padding: 40px; color: #8b949e; }
+        .empty-state i { font-size: 48px; margin-bottom: 12px; display: block; }
+/* Mode clair */
+/* =========================
+   MODE CLAIR - PAGE RAPPORT
+   ========================= */
+
+body.light-mode{
+    background:#ffffff !important;
+    color:#1a1a1a !important;
+}
+
+/* SIDEBAR */
+body.light-mode .sidebar{
+    background:#f5f5f5 !important;
+    border-right:1px solid #e0e0e0 !important;
+}
+
+body.light-mode .sidebar .logo{
+    color:#1f6feb !important;
+    border-bottom:1px solid #e0e0e0 !important;
+}
+
+body.light-mode .sidebar .logo span,
+body.light-mode .sidebar .section-title{
+    color:#666666 !important;
+}
+
+body.light-mode .sidebar a{
+    color:#444444 !important;
+}
+
+body.light-mode .sidebar a:hover,
+body.light-mode .sidebar a.active{
+    background:#e8e8e8 !important;
+    color:#1a1a1a !important;
+}
+
+/* CONTENU */
+body.light-mode .main{
+    background:#ffffff !important;
+}
+
+/* TITRES */
+body.light-mode h1,
+body.light-mode h2{
+    color:#1a1a1a !important;
+}
+
+/* SOUS-TITRES */
+body.light-mode .header p,
+body.light-mode .scan-date{
+    color:#666666 !important;
+}
+
+/* SECTION PRINCIPALE */
+body.light-mode .section{
+    background:#f5f5f5 !important;
+    border:1px solid #e0e0e0 !important;
+}
+
+/* SCAN ITEM */
+body.light-mode .scan-item{
+    background:#ffffff !important;
+    border:1px solid #e0e0e0 !important;
+}
+
+body.light-mode .scan-item:hover{
+    border-color:#1f6feb !important;
+}
+
+/* URL CIBLE */
+body.light-mode .scan-cible{
+    color:#1f6feb !important;
+}
+
+/* BADGE TERMINÉ */
+body.light-mode .badge-termine{
+    background:#dff5df !important;
+    color:#1d7a1d !important;
+}
+
+/* BOUTON PDF */
+body.light-mode .btn-pdf{
+    background:#238636 !important;
+    color:white !important;
+}
+
+body.light-mode .btn-pdf:hover{
+    background:#2ea043 !important;
+    color:white !important;
+}
+
+/* ETAT VIDE */
+body.light-mode .empty-state{
+    color:#666666 !important;
+}
+
+/* BOUTON THEME */
+body.light-mode #themeBtn{
+    background:#f5f5f5 !important;
+    color:#1a1a1a !important;
+    border:1px solid #e0e0e0 !important;
+}
+
+/* INFOS ADMIN */
+body.light-mode .admin-info div{
+    color:#1a1a1a !important;
+}
+    </style>
+</head>
+<script>
+// Charger le thème sauvegardé
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
+    document.getElementById('themeIcon').textContent = '☀️';
+    document.getElementById('themeText').textContent = 'Mode sombre';
+}
+
+function toggleTheme() {
+    document.body.classList.toggle('light-mode');
+    const isLight = document.body.classList.contains('light-mode');
+    
+    if (isLight) {
+        document.getElementById('themeIcon').textContent = '☀️';
+        document.getElementById('themeText').textContent = 'Mode sombre';
+        localStorage.setItem('theme', 'light');
+    } else {
+        document.getElementById('themeIcon').textContent = '🌙';
+        document.getElementById('themeText').textContent = 'Mode clair';
+        localStorage.setItem('theme', 'dark');
+    }
+}
+</script>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main">
+    <div class="header">
+        <h1><i class="bi bi-file-earmark-pdf"></i> Exporter Rapport PDF</h1>
+        <p>Sélectionnez un scan pour générer et télécharger son rapport PDF complet</p>
+    </div>
+
+    <div class="section">
+        <h2>Scans disponibles</h2>
+        {% if scans %}
+            {% for scan in scans %}
+            <div class="scan-item">
+                <i class="bi bi-search" style="color:#8b949e; font-size:20px"></i>
+                <div class="scan-info">
+                    <div class="scan-cible">{{ scan.cible_url }}</div>
+                    <div class="scan-date">Scan #{{ scan.id }} — {{ scan.date }}</div>
+                </div>
+                <span class="badge-termine">✓ Terminé</span>
+                <a href="/rapport/generer/{{ scan.id }}" class="btn-pdf">
+                    <i class="bi bi-file-earmark-pdf"></i> Télécharger PDF
+                </a>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-file-earmark-pdf"></i>
+            Aucun scan disponible
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="section" style="margin-top:20px;">
+        <h2>Scans multi-ports (rapport PCI-DSS / NIST)</h2>
+        {% if scans_mp %}
+            {% for s in scans_mp %}
+            <div class="scan-item">
+                <i class="bi bi-shield-lock" style="color:#8b949e; font-size:20px"></i>
+                <div class="scan-info">
+                    <div class="scan-cible">{{ s.cible }}</div>
+                    <div class="scan-date">Scan multi-ports #{{ s.id }} — {{ s.date }}</div>
+                </div>
+                <span class="badge-termine">✓ Terminé</span>
+                <a href="/rapport/multiport/generer/{{ s.id }}" class="btn-pdf">
+                    <i class="bi bi-file-earmark-pdf"></i> Rapport PCI-DSS PDF
+                </a>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="empty-state"><i class="bi bi-shield-lock"></i> Aucun scan multi-ports terminé</div>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>

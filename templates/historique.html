@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TLS Analyser — Historique</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0d1117; color: #c9d1d9; font-family: 'Segoe UI', sans-serif; display: flex; }
+        .sidebar {
+            width: 220px; min-height: 100vh; background: #161b22;
+            border-right: 1px solid #30363d; padding: 20px 0; position: fixed;
+        }
+        .sidebar .logo { color: #58a6ff; font-size: 18px; font-weight: bold; padding: 0 20px 20px 20px; border-bottom: 1px solid #30363d; }
+        .sidebar .logo span { color: #8b949e; font-size: 11px; display: block; font-weight: normal; }
+        .sidebar .section-title { color: #8b949e; font-size: 11px; padding: 20px 20px 8px 20px; text-transform: uppercase; letter-spacing: 1px; }
+        .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 20px; color: #8b949e; text-decoration: none; font-size: 14px; transition: all 0.2s; }
+        .sidebar a:hover, .sidebar a.active { background: #21262d; color: #c9d1d9; border-left: 3px solid #58a6ff; }
+        .sidebar .admin-info { position: absolute; bottom: 20px; padding: 0 20px; display: flex; align-items: center; gap: 10px; }
+        .sidebar .admin-avatar { width: 32px; height: 32px; background: #58a6ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; color: white; }
+        .main { margin-left: 220px; flex: 1; padding: 24px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .header h1 { font-size: 20px; color: #c9d1d9; font-weight: 600; }
+        .table-section { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; }
+        .table-section h2 { font-size: 15px; margin-bottom: 16px; color: #c9d1d9; }
+        .hist-table { width: 100%; border-collapse: collapse; }
+        .hist-table th { font-size: 11px; color: #8b949e; text-transform: uppercase; padding: 8px 12px; text-align: left; border-bottom: 1px solid #30363d; }
+        .hist-table td { padding: 12px; font-size: 13px; border-bottom: 1px solid #21262d; }
+        .hist-table tr:hover { background: #21262d; cursor: pointer; }
+        .badge-termine { background: #1a4a1a; color: #3fb950; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
+        .badge-cours { background: #3d2a0f; color: #d29922; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
+        .btn-detail { background: #21262d; border: 1px solid #30363d; color: #58a6ff; padding: 4px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; text-decoration: none; }
+        .btn-detail:hover { background: #30363d; color: #58a6ff; }
+        .empty-state { text-align: center; padding: 40px; color: #8b949e; }
+        .empty-state i { font-size: 48px; margin-bottom: 12px; display: block; }
+        /* Mode clair */
+body.light-mode {
+    background: #ffffff !important;
+    color: #1a1a1a !important;
+}
+body.light-mode .sidebar {
+    background: #f5f5f5 !important;
+    border-right: 1px solid #e0e0e0 !important;
+}
+body.light-mode .sidebar a {
+    color: #444444 !important;
+}
+body.light-mode .sidebar .logo {
+    color: #1f6feb !important;
+}
+body.light-mode .sidebar .section-title {
+    color: #666666 !important;
+}
+body.light-mode .sidebar a:hover,
+body.light-mode .sidebar a.active {
+    background: #e8e8e8 !important;
+    color: #1a1a1a !important;
+}
+body.light-mode .main {
+    background: #ffffff !important;
+}
+body.light-mode .section,
+body.light-mode .table-section,
+body.light-mode .stat-card,
+body.light-mode .card,
+body.light-mode .scan-bar,
+body.light-mode .reco-item,
+body.light-mode .scan-selector,
+body.light-mode .prio-section,
+body.light-mode .info-card {
+    background: #f5f5f5 !important;
+    border-color: #e0e0e0 !important;
+}
+body.light-mode .form-input,
+body.light-mode .scan-bar input,
+body.light-mode .scan-bar select,
+body.light-mode .scan-selector select {
+    background: #ffffff !important;
+    border-color: #e0e0e0 !important;
+    color: #1a1a1a !important;
+}
+body.light-mode .hist-table td,
+body.light-mode .vuln-table td {
+    color: #1a1a1a !important;
+    border-bottom: 1px solid #e0e0e0 !important;
+}
+body.light-mode .hist-table th,
+body.light-mode .vuln-table th {
+    color: #666666 !important;
+    border-bottom: 1px solid #e0e0e0 !important;
+}
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+{% include '_sidebar.html' %}
+
+<!-- MAIN -->
+<div class="main">
+    <div class="header">
+        <h1><i class="bi bi-clock-history"></i> Historique des scans</h1>
+    </div>
+
+    <div class="table-section">
+        <h2><i class="bi bi-shield-lock"></i> Scans Simple-Port <small style="color:#8b949e;font-weight:400;font-size:12px;">(HTTPS — port 443)</small></h2>
+        {% if scans %}
+        <table class="hist-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Cible</th>
+                    <th>Date début</th>
+                    <th>Date fin</th>
+                    <th>Statut</th>
+                    <th>Nb Vulnérabilités</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for scan in scans %}
+                <tr>
+                    <td style="color:#8b949e">{{ scan.id }}</td>
+                    <td style="color:#58a6ff">{{ scan.cible_url }}</td>
+                    <td style="color:#8b949e">{{ scan.dateDebut.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td style="color:#8b949e">{{ scan.dateFin.strftime('%d/%m/%Y %H:%M') if scan.dateFin else '—' }}</td>
+                    <td>
+                        {% if scan.statut == 'TERMINE' %}
+                            <span class="badge-termine">✓ Terminé</span>
+                        {% else %}
+                            <span class="badge-cours">⟳ En cours</span>
+                        {% endif %}
+                    </td>
+                    <td style="color:#f85149; font-weight:bold">{{ scan.nb_vulns }}</td>
+                    <td><a href="/historique/{{ scan.id }}" class="btn-detail">Voir détails</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-clock-history"></i>
+            Aucun scan effectué pour le moment
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Scans Multi-Port -->
+    <div class="table-section" style="margin-top:24px;">
+        <h2><i class="bi bi-hdd-network"></i> Scans Multi-Port</h2>
+        {% if scans_mp %}
+        <table class="hist-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Cible</th>
+                    <th>Date</th>
+                    <th>Statut</th>
+                    <th>Score global</th>
+                    <th>Ports</th>
+                    <th>Vulnérabilités</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in scans_mp %}
+                <tr>
+                    <td style="color:#8b949e">{{ s.id }}</td>
+                    <td style="color:#58a6ff">{{ s.cible }}</td>
+                    <td style="color:#8b949e">{{ s.date.strftime('%d/%m/%Y %H:%M') if s.date else '—' }}</td>
+                    <td>
+                        {% if s.statut == 'TERMINE' %}
+                            <span class="badge-termine">✓ Terminé</span>
+                        {% else %}
+                            <span class="badge-cours">⟳ {{ s.statut }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-weight:bold">{{ '%.2f'|format(s.score) if s.score is not none else '—' }}/10</td>
+                    <td style="color:#8b949e">{{ s.nb_ports }}</td>
+                    <td style="color:#f85149; font-weight:bold">{{ s.nb_findings }}</td>
+                    <td><a href="/historique/multiport/{{ s.id }}" class="btn-detail">Voir détails</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-hdd-network"></i>
+            Aucun scan multi-port effectué
+        </div>
+        {% endif %}
+    </div>
+</div>
+</script>
+<script>
+// Charger le thème sauvegardé
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
+    document.getElementById('themeIcon').textContent = '☀️';
+    document.getElementById('themeText').textContent = 'Mode sombre';
+}
+
+function toggleTheme() {
+    document.body.classList.toggle('light-mode');
+    const isLight = document.body.classList.contains('light-mode');
+    
+    if (isLight) {
+        document.getElementById('themeIcon').textContent = '☀️';
+        document.getElementById('themeText').textContent = 'Mode sombre';
+        localStorage.setItem('theme', 'light');
+    } else {
+        document.getElementById('themeIcon').textContent = '🌙';
+        document.getElementById('themeText').textContent = 'Mode clair';
+        localStorage.setItem('theme', 'dark');
+    }
+}
+</script>
+</body>
+</html>

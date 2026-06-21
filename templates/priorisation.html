@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TLS Analyser — Priorisation IA</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+        }
+
+        body{
+            background:#0d1117;
+            color:#c9d1d9;
+            font-family:'Segoe UI',sans-serif;
+            display:flex;
+        }
+
+        /* SIDEBAR */
+        .sidebar{
+            width:220px;
+            min-height:100vh;
+            background:#161b22;
+            border-right:1px solid #30363d;
+            padding:20px 0;
+            position:fixed;
+        }
+
+        .sidebar .logo{
+            color:#58a6ff;
+            font-size:18px;
+            font-weight:bold;
+            padding:0 20px 20px 20px;
+            border-bottom:1px solid #30363d;
+        }
+
+        .sidebar .logo span{
+            color:#8b949e;
+            font-size:11px;
+            display:block;
+            font-weight:normal;
+        }
+
+        .sidebar .section-title{
+            color:#8b949e;
+            font-size:11px;
+            padding:20px 20px 8px 20px;
+            text-transform:uppercase;
+            letter-spacing:1px;
+        }
+
+        .sidebar a{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            padding:10px 20px;
+            color:#8b949e;
+            text-decoration:none;
+            font-size:14px;
+            transition:all 0.2s;
+        }
+
+        .sidebar a:hover,
+        .sidebar a.active{
+            background:#21262d;
+            color:#c9d1d9;
+            border-left:3px solid #58a6ff;
+        }
+
+        .sidebar .admin-info{
+            position:absolute;
+            bottom:20px;
+            padding:0 20px;
+            display:flex;
+            align-items:center;
+            gap:10px;
+        }
+
+        .sidebar .admin-avatar{
+            width:32px;
+            height:32px;
+            background:#58a6ff;
+            border-radius:50%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-weight:bold;
+            font-size:14px;
+            color:white;
+        }
+
+        /* MAIN */
+        .main{
+            margin-left:220px;
+            flex:1;
+            padding:24px;
+        }
+
+        .header{
+            margin-bottom:24px;
+        }
+
+        .header h1{
+            font-size:20px;
+            color:#c9d1d9;
+            font-weight:600;
+        }
+
+        .header p{
+            color:#8b949e;
+            font-size:13px;
+            margin-top:6px;
+        }
+
+        /* SCAN SELECTOR */
+        .scan-selector{
+            background:#161b22;
+            border:1px solid #30363d;
+            border-radius:10px;
+            padding:16px 20px;
+            margin-bottom:24px;
+            display:flex;
+            align-items:center;
+            gap:12px;
+        }
+
+        .scan-selector label{
+            color:#8b949e;
+            font-size:13px;
+        }
+
+        .scan-selector select{
+            background:#0d1117;
+            border:1px solid #30363d;
+            color:#c9d1d9;
+            padding:8px 14px;
+            border-radius:6px;
+            font-size:13px;
+        }
+
+        /* SERVER INFO */
+        .server-info{
+            background:#161b22;
+            border:1px solid #30363d;
+            border-radius:8px;
+            padding:12px 20px;
+            margin-bottom:20px;
+            display:flex;
+            align-items:center;
+            gap:10px;
+        }
+
+        /* CARDS */
+        .plan-cards{
+            display:grid;
+            grid-template-columns:repeat(3,1fr);
+            gap:16px;
+            margin-bottom:24px;
+        }
+
+        .plan-card{
+            background:#161b22;
+            border:1px solid #30363d;
+            border-radius:10px;
+            padding:16px;
+        }
+
+        .plan-label{
+            font-size:11px;
+            text-transform:uppercase;
+            letter-spacing:1px;
+            margin-bottom:8px;
+        }
+
+        .plan-value{
+            font-size:28px;
+            font-weight:bold;
+            margin-bottom:4px;
+        }
+
+        .plan-sub{
+            font-size:12px;
+            color:#8b949e;
+        }
+
+        .card-immediate .plan-label,
+        .card-immediate .plan-value{
+            color:#f85149;
+        }
+
+        .card-rapide .plan-label,
+        .card-rapide .plan-value{
+            color:#d29922;
+        }
+
+        .card-surveiller .plan-label,
+        .card-surveiller .plan-value{
+            color:#3fb950;
+        }
+
+        /* GRID */
+        .content-grid{
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:20px;
+        }
+
+        .section{
+            background:#161b22;
+            border:1px solid #30363d;
+            border-radius:10px;
+            padding:20px;
+        }
+
+        .section h2{
+            font-size:15px;
+            margin-bottom:16px;
+            color:#c9d1d9;
+            display:flex;
+            align-items:center;
+            gap:8px;
+        }
+
+        /* PRIORISATION */
+        .prio-item{
+            display:flex;
+            align-items:center;
+            gap:12px;
+            padding:12px 0;
+            border-bottom:1px solid #21262d;
+        }
+
+        .prio-item:last-child{
+            border-bottom:none;
+        }
+
+        .prio-rang{
+            width:28px;
+            height:28px;
+            border-radius:50%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:12px;
+            font-weight:bold;
+        }
+
+        .rang-1{
+            background:#3d0f0f;
+            color:#f85149;
+        }
+
+        .rang-2{
+            background:#3d2a0f;
+            color:#d29922;
+        }
+
+        .rang-3{
+            background:#1f3a1f;
+            color:#3fb950;
+        }
+
+        .rang-other{
+            background:#21262d;
+            color:#8b949e;
+        }
+
+        .prio-info{
+            flex:1;
+        }
+
+        .prio-nom{
+            font-size:13px;
+            font-weight:500;
+            margin-bottom:4px;
+        }
+
+        .prio-cve{
+            font-size:11px;
+            color:#8b949e;
+        }
+
+        .badge-critical{
+            background:#3d0f0f;
+            color:#f85149;
+            padding:2px 8px;
+            border-radius:4px;
+            font-size:10px;
+        }
+
+        .badge-high{
+            background:#3d2a0f;
+            color:#d29922;
+            padding:2px 8px;
+            border-radius:4px;
+            font-size:10px;
+        }
+
+        .badge-medium{
+            background:#1f3a1f;
+            color:#3fb950;
+            padding:2px 8px;
+            border-radius:4px;
+            font-size:10px;
+        }
+
+        .prio-score{
+            text-align:right;
+        }
+
+        .score-val{
+            font-size:18px;
+            font-weight:bold;
+            color:#58a6ff;
+        }
+
+        /* RECOMMANDATIONS */
+        .reco-item{
+            background:#0d1117;
+            border:1px solid #30363d;
+            border-radius:8px;
+            padding:16px;
+            margin-bottom:12px;
+        }
+
+        .reco-header{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            margin-bottom:12px;
+        }
+
+        .reco-nom{
+            font-size:14px;
+            font-weight:600;
+            color:#c9d1d9;
+        }
+
+        .reco-priorite-haute{
+            background:#3d0f0f;
+            color:#f85149;
+            padding:3px 10px;
+            border-radius:4px;
+            font-size:11px;
+            margin-left:auto;
+        }
+
+        .reco-priorite-moyenne{
+            background:#3d2a0f;
+            color:#d29922;
+            padding:3px 10px;
+            border-radius:4px;
+            font-size:11px;
+            margin-left:auto;
+        }
+
+        .reco-priorite-basse{
+            background:#1f3a1f;
+            color:#3fb950;
+            padding:3px 10px;
+            border-radius:4px;
+            font-size:11px;
+            margin-left:auto;
+        }
+
+        .reco-section{
+            margin-bottom:8px;
+        }
+
+        .reco-label{
+            font-size:11px;
+            color:#8b949e;
+            text-transform:uppercase;
+            margin-bottom:4px;
+        }
+
+        .reco-text{
+            font-size:13px;
+            color:#c9d1d9;
+        }
+
+        .reco-etape{
+            font-size:12px;
+            color:#58a6ff;
+            padding:6px 10px;
+            background:#161b22;
+            border-radius:4px;
+            margin-top:4px;
+        }
+
+        .empty-state{
+            text-align:center;
+            padding:40px;
+            color:#8b949e;
+        }
+        .empty-state i{
+            font-size:48px;
+            margin-bottom:12px;
+            display:block;
+        }
+        /* Mode clair */
+/* =========================
+   MODE CLAIR COMPLET
+   ========================= */
+
+body.light-mode{
+    background:#ffffff !important;
+    color:#1a1a1a !important;
+}
+
+/* SIDEBAR */
+body.light-mode .sidebar{
+    background:#f5f5f5 !important;
+    border-right:1px solid #e0e0e0 !important;
+}
+
+body.light-mode .sidebar .logo{
+    color:#1f6feb !important;
+    border-bottom:1px solid #e0e0e0 !important;
+}
+
+body.light-mode .sidebar .logo span,
+body.light-mode .sidebar .section-title{
+    color:#666666 !important;
+}
+
+body.light-mode .sidebar a{
+    color:#444444 !important;
+}
+
+body.light-mode .sidebar a:hover,
+body.light-mode .sidebar a.active{
+    background:#e8e8e8 !important;
+    color:#1a1a1a !important;
+}
+
+/* CONTENU PRINCIPAL */
+body.light-mode .main{
+    background:#ffffff !important;
+}
+
+/* CARTES ET BLOCS */
+body.light-mode .section,
+body.light-mode .scan-selector,
+body.light-mode .server-info,
+body.light-mode .plan-card,
+body.light-mode .reco-item{
+    background:#f5f5f5 !important;
+    border:1px solid #e0e0e0 !important;
+}
+
+/* CHAMP ETAPE DE CORRECTION */
+body.light-mode .reco-etape{
+    background:#ffffff !important;
+    border:1px solid #e0e0e0 !important;
+    color:#1f6feb !important;
+}
+
+/* SELECT */
+body.light-mode .scan-selector select{
+    background:#ffffff !important;
+    color:#1a1a1a !important;
+    border:1px solid #e0e0e0 !important;
+}
+
+/* TITRES */
+body.light-mode h1,
+body.light-mode h2{
+    color:#1a1a1a !important;
+}
+
+/* TEXTES */
+body.light-mode .header p,
+body.light-mode .plan-sub,
+body.light-mode .prio-cve,
+body.light-mode .reco-label{
+    color:#666666 !important;
+}
+
+body.light-mode .prio-nom,
+body.light-mode .reco-text,
+body.light-mode .reco-nom{
+    color:#1a1a1a !important;
+}
+
+/* SCORE */
+body.light-mode .score-val{
+    color:#1f6feb !important;
+}
+
+/* LIGNES */
+body.light-mode .prio-item{
+    border-bottom:1px solid #e0e0e0 !important;
+}
+
+/* BOUTON MODE */
+body.light-mode #themeBtn{
+    background:#f5f5f5 !important;
+    color:#1a1a1a !important;
+    border:1px solid #e0e0e0 !important;
+}
+
+/* INFOS ADMIN */
+body.light-mode .admin-info div{
+    color:#1a1a1a !important;
+}
+
+/* ETAT VIDE */
+body.light-mode .empty-state{
+    color:#666666 !important;
+}
+
+/* BADGES */
+body.light-mode .badge-critical{
+    background:#ffd6d6 !important;
+    color:#b00020 !important;
+}
+
+body.light-mode .badge-high{
+    background:#ffe7c2 !important;
+    color:#a15c00 !important;
+}
+
+body.light-mode .badge-medium{
+    background:#dff5df !important;
+    color:#1d7a1d !important;
+}
+
+/* PRIORITES */
+body.light-mode .reco-priorite-haute{
+    background:#ffd6d6 !important;
+    color:#b00020 !important;
+}
+
+body.light-mode .reco-priorite-moyenne{
+    background:#ffe7c2 !important;
+    color:#a15c00 !important;
+}
+
+body.light-mode .reco-priorite-basse{
+    background:#dff5df !important;
+    color:#1d7a1d !important;
+}
+
+/* RANGS */
+body.light-mode .rang-other{
+    background:#e8e8e8 !important;
+    color:#555 !important;
+}
+
+/* SERVEUR NON DETECTE */
+body.light-mode .server-info span{
+    color:#1a1a1a !important;
+}
+    </style>
+</head>
+<script>
+// Charger le thème sauvegardé
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
+    document.getElementById('themeIcon').textContent = '☀️';
+    document.getElementById('themeText').textContent = 'Mode sombre';
+}
+
+function toggleTheme() {
+    document.body.classList.toggle('light-mode');
+    const isLight = document.body.classList.contains('light-mode');
+    
+    if (isLight) {
+        document.getElementById('themeIcon').textContent = '☀️';
+        document.getElementById('themeText').textContent = 'Mode sombre';
+        localStorage.setItem('theme', 'light');
+    } else {
+        document.getElementById('themeIcon').textContent = '🌙';
+        document.getElementById('themeText').textContent = 'Mode clair';
+        localStorage.setItem('theme', 'dark');
+    }
+}
+</script>
+<body>
+<!-- SIDEBAR -->
+{% include '_sidebar.html' %}
+
+<!-- MAIN -->
+<div class="main">
+
+    <div class="header">
+        <h1>✦ Priorisation IA — Plan de remédiation</h1>
+        <p>
+            Vulnérabilités classées par score de criticité
+        </p>
+    </div>
+
+    <!-- Scan selector -->
+    <div class="scan-selector">
+
+        <label>
+            <i class="bi bi-search"></i>
+            Sélectionner un scan :
+        </label>
+
+        <select id="scanSelect" onchange="chargerPriorisation()">
+
+            {% for scan in scans %}
+            <option value="{{ scan.id }}"
+                {% if scan.id == scan_actuel %}selected{% endif %}>
+
+                Scan #{{ scan.id }}
+                — {{ scan.cible_url }}
+                — {{ scan.date }}
+
+            </option>
+            {% endfor %}
+
+        </select>
+
+    </div>
+
+    <!-- Info serveur -->
+    <div class="server-info">
+
+        <i class="bi bi-server" style="color:#58a6ff"></i>
+
+        <span style="color:#8b949e; font-size:13px">
+            Serveur détecté :
+        </span>
+
+        {% if type_serveur == 'nginx' %}
+
+            <span style="background:#1a4a1a; color:#3fb950; padding:3px 12px; border-radius:4px; font-size:12px">
+                🟢 Nginx — {{ version_serveur }}
+            </span>
+
+        {% elif type_serveur == 'apache' %}
+
+            <span style="background:#3d2a0f; color:#d29922; padding:3px 12px; border-radius:4px; font-size:12px">
+                🟡 Apache — {{ version_serveur }}
+            </span>
+
+        {% elif type_serveur == 'iis' %}
+
+            <span style="background:#1a2a4a; color:#58a6ff; padding:3px 12px; border-radius:4px; font-size:12px">
+                🔵 IIS — {{ version_serveur }}
+            </span>
+
+        {% else %}
+
+            <span style="background:#21262d; color:#8b949e; padding:3px 12px; border-radius:4px; font-size:12px">
+                ❓ Serveur non détecté
+            </span>
+
+        {% endif %}
+
+    </div>
+
+    {% if vulnerabilites %}
+
+    <!-- Cards -->
+    <div class="plan-cards">
+
+        <div class="plan-card card-immediate">
+            <div class="plan-label">⚡ Corriger immédiatement</div>
+            <div class="plan-value">{{ nb_immediate }}</div>
+            <div class="plan-sub">Sous 48h</div>
+        </div>
+
+        <div class="plan-card card-rapide">
+            <div class="plan-label">⚠ Corriger rapidement</div>
+            <div class="plan-value">{{ nb_rapide }}</div>
+            <div class="plan-sub">Sous 1 semaine</div>
+        </div>
+
+        <div class="plan-card card-surveiller">
+            <div class="plan-label">ℹ À surveiller</div>
+            <div class="plan-value">{{ nb_surveiller }}</div>
+            <div class="plan-sub">Sous 1 mois</div>
+        </div>
+
+    </div>
+
+    <!-- GRID -->
+    <div class="content-grid">
+
+        <!-- PRIORISATION -->
+        <div class="section">
+
+            <h2>
+                <i class="bi bi-bar-chart-line" style="color:#58a6ff"></i>
+                Vulnérabilités priorisées
+            </h2>
+
+            {% for v in vulnerabilites %}
+
+            <div class="prio-item">
+
+                <div class="prio-rang
+                    {% if loop.index == 1 %}
+                        rang-1
+                    {% elif loop.index == 2 %}
+                        rang-2
+                    {% elif loop.index == 3 %}
+                        rang-3
+                    {% else %}
+                        rang-other
+                    {% endif %}
+                ">
+                    {{ loop.index }}
+                </div>
+
+                <div class="prio-info">
+
+                    <div class="prio-nom">
+                        {{ v.nom }}
+                    </div>
+
+                    <div class="prio-cve">
+
+                        {{ v.cve }}
+
+                        {% if v.severite == 'CRITICAL' %}
+                            <span class="badge-critical">CRITICAL</span>
+
+                        {% elif v.severite == 'HIGH' %}
+                            <span class="badge-high">HIGH</span>
+
+                        {% else %}
+                            <span class="badge-medium">
+                                {{ v.severite }}
+                            </span>
+                        {% endif %}
+
+                    </div>
+                </div>
+
+                <div class="prio-score">
+                    <div class="score-val">
+                        {{ v.criticite }}
+                    </div>
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+        <!-- RECOMMANDATIONS -->
+        <div class="section">
+
+            <h2>
+                <i class="bi bi-lightbulb" style="color:#d29922"></i>
+                Recommandations de remédiation
+            </h2>
+
+            {% for r in recommandations %}
+
+            <div class="reco-item">
+
+                <div class="reco-header">
+
+    <i class="bi bi-shield-exclamation"
+       style="color:#f85149"></i>
+
+    <span class="reco-nom">
+        {{ r.nom }}
+    </span>
+
+    {% if r.severite == 'CRITICAL' %}
+
+        <span class="badge-critical">
+            CRITICAL
+        </span>
+
+    {% elif r.severite == 'HIGH' %}
+
+        <span class="badge-high">
+            HIGH
+        </span>
+
+    {% else %}
+
+        <span class="badge-medium">
+            {{ r.severite }}
+        </span>
+
+    {% endif %}
+
+</div>
+                    
+                <div class="reco-section">
+                    <div class="reco-label">
+                        Description
+                    </div>
+
+                    <div class="reco-text">
+                        {{ r.description }}
+                    </div>
+                </div>
+
+                <div class="reco-section">
+                    <div class="reco-label">
+                        Étape de correction
+                    </div>
+
+                    <div class="reco-etape">
+                        {{ r.etapeCorrection }}
+                    </div>
+                </div>
+
+                <div class="reco-section">
+                    <div class="reco-label">
+                        Solution recommandée
+                    </div>
+
+                    <div class="reco-text"
+                         style="color:#3fb950">
+
+                        ✓ {{ r.solution }}
+
+                    </div>
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+    {% else %}
+
+    <div class="empty-state">
+
+        <i class="bi bi-star"></i>
+
+        Sélectionnez un scan pour voir la priorisation
+
+    </div>
+
+    {% endif %}
+
+</div>
+
+<script>
+function chargerPriorisation() {
+
+    const scanId =
+        document.getElementById('scanSelect').value;
+
+    window.location.href =
+        '/priorisation?scan_id=' + scanId;
+}
+</script>
+</body>
+</html>

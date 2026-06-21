@@ -1,0 +1,142 @@
+{# ============================================================================
+   Barre latérale partagée — incluse par TOUTES les pages via {% include '_sidebar.html' %}.
+   But : le menu (les « titres ») doit être identique sur chaque page et toujours visible.
+
+   - Namespacée sous #appSidebar (et non .sidebar) pour ne JAMAIS entrer en conflit
+     avec le CSS .sidebar restant dans chaque page : les anciennes règles ne ciblent
+     plus cet élément, le style ci-dessous fait foi partout.
+   - Élément actif déterminé automatiquement via request.path (aucune config par page).
+   - Icônes : Bootstrap Icons (chaque page doit charger bootstrap-icons.css dans <head>).
+   - Le script toggleTheme() reste dans chaque page ; ce bloc fournit seulement les
+     ids themeBtn / themeIcon / themeText qu'il manipule.
+   Requiert la variable `admin` dans le contexte (fournie par toutes les routes).
+   ============================================================================ #}
+{% set _p = request.path %}
+<aside id="appSidebar">
+    <div class="logo">🔒 SSL\TLS Analyser<span>PFE</span></div>
+
+    <div class="section-title">Principal</div>
+    <a href="/dashboard" class="{{ 'active' if _p == '/dashboard' else '' }}"><i class="bi bi-grid"></i> Dashboard</a>
+    <a href="/multiport/lancer_scan_multiport" class="{{ 'active' if _p.startswith('/multiport') else '' }}"><i class="bi bi-shield-lock"></i> Scan Multi-Port</a>
+    <a href="/priorisation" class="{{ 'active' if _p.startswith('/priorisation') else '' }}"><i class="bi bi-stars"></i> Priorités IA</a>
+
+    <div class="section-title">Rapports</div>
+    <a href="/historique" class="{{ 'active' if _p.startswith('/historique') else '' }}"><i class="bi bi-clock-history"></i> Historique</a>
+    <a href="/comparison/comparaison_scans" class="{{ 'active' if _p.startswith('/comparison') else '' }}"><i class="bi bi-arrow-left-right"></i> Comparaison</a>
+    <a href="/rapport" class="{{ 'active' if _p.startswith('/rapport') else '' }}"><i class="bi bi-download"></i> Exporter</a>
+
+    <div class="section-title">User</div>
+    <a href="/profil" class="{{ 'active' if _p.startswith('/profil') else '' }}"><i class="bi bi-person-circle"></i> Profil</a>
+    <a href="/logout"><i class="bi bi-box-arrow-right"></i> Déconnexion</a>
+
+    <!-- Bouton thème sombre/clair (script toggleTheme défini dans chaque page) -->
+    <div class="theme-toggle-wrap">
+        <button onclick="toggleTheme()" id="themeBtn">
+            <span id="themeIcon">🌙</span>
+            <span id="themeText">Mode clair</span>
+        </button>
+    </div>
+
+    <div class="sidebar-spacer"></div>
+
+    <a href="/profil" class="admin-info">
+        <div class="admin-avatar">{{ admin.prenom[0] | upper if admin.prenom else 'A' }}</div>
+        <div>
+            <div class="admin-name">{{ admin.prenom }} {{ admin.nom }}</div>
+            <div class="admin-email">{{ admin.email }}</div>
+        </div>
+    </a>
+</aside>
+
+<style>
+/* ===== Barre latérale partagée (palette sombre du dashboard) ===== */
+#appSidebar {
+    width: 220px; min-height: 100vh;
+    background: #161b22; border-right: 1px solid #30363d;
+    padding: 20px 0;
+    position: fixed; top: 0; left: 0; z-index: 100;
+    display: flex; flex-direction: column;
+    font-family: 'Segoe UI', sans-serif;
+}
+#appSidebar .logo {
+    color: #58a6ff; font-size: 18px; font-weight: bold;
+    padding: 0 20px 20px 20px; border-bottom: 1px solid #30363d;
+}
+#appSidebar .logo span { color: #8b949e; font-size: 11px; display: block; font-weight: normal; }
+#appSidebar .section-title {
+    color: #8b949e; font-size: 11px; padding: 20px 20px 8px 20px;
+    text-transform: uppercase; letter-spacing: 1px;
+}
+#appSidebar a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 20px; color: #8b949e; text-decoration: none;
+    font-size: 14px; transition: all 0.2s; border-left: 3px solid transparent;
+}
+#appSidebar a:hover,
+#appSidebar a.active { background: #21262d; color: #c9d1d9; border-left-color: #58a6ff; }
+#appSidebar a i { width: 16px; text-align: center; }
+
+#appSidebar .theme-toggle-wrap { padding: 10px 20px; margin-top: 8px; }
+#appSidebar #themeBtn {
+    width: 100%; background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+    padding: 8px 14px; border-radius: 6px; font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px; transition: all 0.2s;
+}
+#appSidebar #themeBtn:hover { background: #30363d; }
+
+#appSidebar .sidebar-spacer { flex: 1; }
+
+#appSidebar .admin-info {
+    padding: 14px 20px; border-top: 1px solid #30363d;
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; transition: background 0.2s; border-left: 0;
+}
+#appSidebar .admin-info:hover { background: #21262d; }
+#appSidebar .admin-avatar {
+    width: 32px; height: 32px; background: #58a6ff; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 14px; color: #fff; flex-shrink: 0; text-transform: uppercase;
+}
+#appSidebar .admin-name  { font-size: 13px; color: #c9d1d9; }
+#appSidebar .admin-email { font-size: 11px; color: #8b949e; }
+
+/* ===== Variante claire (suit body.light-mode comme le reste de l'app) ===== */
+body.light-mode #appSidebar { background: #f5f5f5; border-right: 1px solid #e0e0e0; }
+body.light-mode #appSidebar .logo { color: #1f6feb; }
+body.light-mode #appSidebar .logo span,
+body.light-mode #appSidebar .section-title { color: #666666; }
+body.light-mode #appSidebar a { color: #444444; }
+body.light-mode #appSidebar a:hover,
+body.light-mode #appSidebar a.active { background: #e8e8e8; color: #1a1a1a; }
+body.light-mode #appSidebar #themeBtn { background: #e8e8e8; border-color: #d0d0d0; color: #1a1a1a; }
+body.light-mode #appSidebar .admin-info { border-top: 1px solid #e0e0e0; }
+body.light-mode #appSidebar .admin-info:hover { background: #e8e8e8; }
+body.light-mode #appSidebar .admin-name { color: #1a1a1a; }
+</style>
+
+<script>
+/* Thème partagé. IIFE => aucune variable globale (pas de collision avec le
+   `const savedTheme` que certaines pages déclarent encore). Robuste : applique le
+   thème même si une page place son script dans <head> (document.body alors null).
+   Définit toggleTheme() utilisé par le bouton de la barre latérale. */
+(function () {
+    function appliquerTheme() {
+        var clair = localStorage.getItem('theme') === 'light';
+        if (document.body) document.body.classList.toggle('light-mode', clair);
+        var icone = document.getElementById('themeIcon');
+        var texte = document.getElementById('themeText');
+        if (icone) icone.textContent = clair ? '☀️' : '🌙';
+        if (texte) texte.textContent = clair ? 'Mode sombre' : 'Mode clair';
+    }
+    window.toggleTheme = function () {
+        var clair = !document.body.classList.contains('light-mode');
+        localStorage.setItem('theme', clair ? 'light' : 'dark');
+        appliquerTheme();
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', appliquerTheme);
+    } else {
+        appliquerTheme();
+    }
+})();
+</script>

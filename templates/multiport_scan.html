@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSL\TLS Analyser — Scan Multi-Port</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* Palette sombre par défaut (identique au dashboard). La barre latérale est
+           fournie par _sidebar.html ; ici on ne style que le contenu principal. */
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* ===== MAIN CONTENT ===== */
+        .main {
+            margin-left: 220px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .topbar {
+            background: #161b22;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #30363d;
+        }
+        .topbar h4 { font-size: 1.1rem; font-weight: 700; color: #c9d1d9; margin: 0; }
+        .topbar .subtitle { color: #8b949e; font-size: 0.85rem; }
+        .badge-operational {
+            background: #1a4a1a;
+            color: #3fb950;
+            border: 1px solid #3fb950;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .page-content { padding: 28px 32px; flex: 1; }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: #161b22;
+            border-radius: 12px;
+            border: 1px solid #30363d;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+            margin-bottom: 24px;
+        }
+        .card-header-custom {
+            padding: 18px 24px;
+            border-bottom: 1px solid #21262d;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card-header-custom h6 {
+            margin: 0;
+            font-weight: 700;
+            color: #c9d1d9;
+            font-size: 0.95rem;
+        }
+        .card-header-custom .icon-wrap {
+            width: 32px; height: 32px;
+            background: rgba(88,166,255,0.15);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: #58a6ff; font-size: 0.85rem;
+        }
+        .card-body-custom { padding: 24px; }
+
+        /* ===== FORM ===== */
+        .form-label { font-weight: 600; color: #c9d1d9; font-size: 0.85rem; margin-bottom: 6px; }
+        .form-control {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-control::placeholder { color: #6e7681; }
+        .form-control:focus {
+            background: #0d1117;
+            color: #c9d1d9;
+            border-color: #58a6ff;
+            box-shadow: 0 0 0 3px rgba(88,166,255,0.15);
+            outline: none;
+        }
+
+        .ports-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 8px;
+            padding: 16px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+        }
+        .port-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.82rem;
+            color: #c9d1d9;
+        }
+        .port-item:hover { border-color: #58a6ff; background: #1c2333; }
+        .port-item input[type="checkbox"] { accent-color: #58a6ff; }
+
+        .btn-scan {
+            background: #1f6feb;
+            color: #fff;
+            border: none;
+            padding: 11px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+        .btn-scan:hover { background: #388bfd; }
+        .btn-scan:disabled { background: #30363d; color: #8b949e; cursor: not-allowed; }
+
+        /* ===== PROGRESS ===== */
+        .progress-wrap {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 20px 24px;
+            margin-top: 20px;
+        }
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #c9d1d9;
+        }
+        .progress {
+            height: 10px;
+            border-radius: 10px;
+            background: #21262d;
+            overflow: hidden;
+        }
+        .progress-bar {
+            background: linear-gradient(90deg, #1f6feb, #58a6ff);
+            border-radius: 10px;
+            transition: width 0.4s ease;
+        }
+
+        /* ===== RESULTS ===== */
+        .score-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .score-low  { background: #1f3a1f; color: #3fb950; }
+        .score-mid  { background: #3d2a0f; color: #d29922; }
+        .score-high { background: #3d0f0f; color: #f85149; }
+
+        .obs-box {
+            background: #0d2230;
+            border-left: 4px solid #58a6ff;
+            border-radius: 0 8px 8px 0;
+            padding: 14px 18px;
+            font-size: 0.875rem;
+            color: #9cd2f0;
+            margin-bottom: 20px;
+        }
+
+        .result-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        .result-table thead tr { background: #0d1117; }
+        .result-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #8b949e;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border-bottom: 1px solid #30363d;
+        }
+        .result-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #21262d;
+            color: #c9d1d9;
+        }
+        .result-table tbody tr:hover { background: #1c2333; }
+
+        .vuln-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin: 2px;
+        }
+        .vuln-heartbleed { background: #3d0f0f; color: #f85149; }
+        .vuln-robot { background: #3d2a0f; color: #d29922; }
+        .vuln-ccs { background: #3d0f1a; color: #f85182; }
+        .vuln-none { color: #3fb950; font-weight: 600; }
+
+        .cert-ok { color: #3fb950; font-weight: 600; }
+        .cert-ko { color: #f85149; font-weight: 600; }
+
+        .tls-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .tls-13  { background: #1f3a1f; color: #3fb950; }
+        .tls-12  { background: #0d2a4d; color: #58a6ff; }
+        .tls-old { background: #3d0f0f; color: #f85149; }
+
+        .score-cell {
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.82rem;
+        }
+        .score-cell.low  { background: #1f3a1f; color: #3fb950; }
+        .score-cell.mid  { background: #3d2a0f; color: #d29922; }
+        .score-cell.high { background: #3d0f0f; color: #f85149; }
+
+        .erreur-cell { color: #8b949e; font-style: italic; font-size: 0.8rem; }
+
+        /* ===== Variante claire (toggle thème, même base que le dashboard) ===== */
+        body.light-mode { background: #ffffff; color: #1a1a1a; }
+        body.light-mode .topbar { background: #ffffff; border-bottom: 1px solid #e5e7eb; }
+        body.light-mode .topbar h4 { color: #1a1a2e; }
+        body.light-mode .topbar .subtitle { color: #6b7280; }
+        body.light-mode .badge-operational { background: #d1fae5; color: #065f46; border: none; }
+        body.light-mode .card { background: #ffffff; border-color: #e5e7eb; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        body.light-mode .card-header-custom { border-bottom: 1px solid #f3f4f6; }
+        body.light-mode .card-header-custom h6 { color: #1a1a2e; }
+        body.light-mode .card-header-custom .icon-wrap { background: #ede9fe; color: #6366f1; }
+        body.light-mode .form-label { color: #374151; }
+        body.light-mode .form-control { background: #ffffff; color: #111827; border-color: #d1d5db; }
+        body.light-mode .form-control:focus { box-shadow: 0 0 0 3px rgba(99,102,241,0.1); border-color: #6366f1; }
+        body.light-mode .ports-grid { background: #f9fafb; border-color: #e5e7eb; }
+        body.light-mode .port-item { background: #ffffff; border-color: #e5e7eb; color: #374151; }
+        body.light-mode .port-item:hover { border-color: #6366f1; background: #f5f3ff; }
+        body.light-mode .progress-wrap { background: #f9fafb; border-color: #e5e7eb; }
+        body.light-mode .progress-label { color: #374151; }
+        body.light-mode .progress { background: #e5e7eb; }
+        body.light-mode .obs-box { background: #f0f9ff; color: #0c4a6e; border-left-color: #0ea5e9; }
+        body.light-mode .result-table thead tr { background: #f9fafb; }
+        body.light-mode .result-table th { color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+        body.light-mode .result-table td { color: #374151; border-bottom: 1px solid #f3f4f6; }
+        body.light-mode .result-table tbody tr:hover { background: #fafafa; }
+        body.light-mode .score-low  { background: #d1fae5; color: #065f46; }
+        body.light-mode .score-mid  { background: #fef3c7; color: #92400e; }
+        body.light-mode .score-high { background: #fee2e2; color: #991b1b; }
+        body.light-mode .vuln-heartbleed { background: #fee2e2; color: #991b1b; }
+        body.light-mode .vuln-robot { background: #fef3c7; color: #92400e; }
+        body.light-mode .vuln-ccs { background: #ffe4e6; color: #9f1239; }
+        body.light-mode .tls-13  { background: #d1fae5; color: #065f46; }
+        body.light-mode .tls-12  { background: #dbeafe; color: #1e40af; }
+        body.light-mode .tls-old { background: #fee2e2; color: #991b1b; }
+        body.light-mode .score-cell.low  { background: #d1fae5; color: #065f46; }
+        body.light-mode .score-cell.mid  { background: #fef3c7; color: #92400e; }
+        body.light-mode .score-cell.high { background: #fee2e2; color: #991b1b; }
+        body.light-mode .erreur-cell { color: #9ca3af; }
+    </style>
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+    <div class="topbar">
+        <div>
+            <h4>Scan Multi-Port TLS/SSL</h4>
+            <span class="subtitle">Dashboard — Analyse SSL/TLS</span>
+        </div>
+        <span class="badge-operational">● Système opérationnel</span>
+    </div>
+
+    <div class="page-content">
+
+        <!-- Config card -->
+        <div class="card">
+            <div class="card-header-custom">
+                <div class="icon-wrap"><i class="fas fa-shield-alt"></i></div>
+                <h6>Configuration du Scan</h6>
+            </div>
+            <div class="card-body-custom">
+                <div class="row g-4">
+                    <div class="col-md-5">
+                        <label class="form-label">Cible (Domaine ou IP)</label>
+                        <input type="text" class="form-control" id="cible"
+                               placeholder="ex: example.com ou 192.168.1.1">
+                    </div>
+                    <div class="col-md-7">
+                        <label class="form-label">Ports à scanner</label>
+                        <label class="port-item" style="margin-bottom:10px;">
+                            <input type="checkbox" id="autoDecouverte" checked onchange="toggleDecouverte()">
+                            🔍 Découverte automatique (top 100 ports + détection de service)
+                        </label>
+                        <div class="ports-grid" id="portsGrid" style="display:none;">
+                            <label class="port-item">
+                                <input type="checkbox" class="port-check" value="25" checked> 25 (SMTP)
+                            </label>
+                            <label class="port-item">
+                                <input type="checkbox" class="port-check" value="443" checked> 443 (HTTPS)
+                            </label>
+                            <label class="port-item">
+                                <input type="checkbox" class="port-check" value="587" checked> 587 (SMTP TLS)
+                            </label>
+                            <label class="port-item">
+                                <input type="checkbox" class="port-check" value="143" checked> 143 (IMAP)
+                            </label>
+                            <label class="port-item">
+                                <input type="checkbox" class="port-check" value="993" checked> 993 (IMAPS)
+                            </label>
+                            <label class="port-item">
+                                <input type="checkbox" class="port-check" value="110" checked> 110 (POP3)
+                            </label>
+                            <label class="port-item">
+                                <input type="checkbox" class="port-check" value="995" checked> 995 (POP3S)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn-scan mt-4" id="btnScan" onclick="lancerScan()">
+                    <i class="fas fa-play"></i> Lancer le scan
+                </button>
+
+                <!-- Progress -->
+                <div class="progress-wrap mt-4" id="progressSection" style="display:none;">
+                    <div class="progress-label">
+                        <span><i class="fas fa-circle-notch fa-spin me-2"></i>Scan en cours...</span>
+                        <span id="progressPct">0%</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" id="progressBar" style="width:0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results card -->
+        <div class="card" id="resultSection" style="display:none;">
+            <div class="card-header-custom">
+                <div class="icon-wrap"><i class="fas fa-chart-bar"></i></div>
+                <h6>Résultats du Scan</h6>
+                <div id="scoreGlobal" class="ms-auto"></div>
+            </div>
+            <div class="card-body-custom">
+                <div id="obsBox" style="display:none;" class="obs-box"></div>
+                <div style="overflow-x:auto;">
+                    <table class="result-table">
+                        <thead>
+                            <tr>
+                                <th>Port</th>
+                                <th>Protocole</th>
+                                <th>TLS</th>
+                                <th>Certificat CN</th>
+                                <th>Validité</th>
+                                <th>Vulnérabilités</th>
+                                <th>Score</th>
+                                <th>Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // ── Thème ─────────────────────────────────────────────────────────────────
+    // Sombre par défaut ; le mode clair est mémorisé dans localStorage (comme le dashboard).
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-mode');
+        document.getElementById('themeIcon').textContent = '☀️';
+        document.getElementById('themeText').textContent = 'Mode sombre';
+    }
+    function toggleTheme() {
+        document.body.classList.toggle('light-mode');
+        const isLight = document.body.classList.contains('light-mode');
+        document.getElementById('themeIcon').textContent = isLight ? '☀️' : '🌙';
+        document.getElementById('themeText').textContent = isLight ? 'Mode sombre' : 'Mode clair';
+        localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    }
+    function toggleDecouverte() {
+        const auto = document.getElementById('autoDecouverte').checked;
+        document.getElementById('portsGrid').style.display = auto ? 'none' : 'grid';
+    }
+
+    // ── Persistance du scan en cours ───────────────────────────────────────────
+    // Le scan tourne côté serveur (thread + DB) ; on mémorise seulement son id pour
+    // se reconnecter au scan après un rechargement / une navigation. Le scan n'est
+    // jamais perdu : il continue en backend même si le front est rechargé.
+    const SCAN_KEY = 'mp_scan_en_cours';
+    let evtSource = null;
+
+    async function lancerScan() {
+        const cible = document.getElementById('cible').value.trim();
+        if (!cible) { alert('Veuillez saisir une cible.'); return; }
+
+        const auto = document.getElementById('autoDecouverte').checked;
+        let body = {cible, mode: auto ? 'auto' : 'manuel'};
+        let nbPorts = 100;
+        if (!auto) {
+            const ports = Array.from(document.querySelectorAll('.port-check:checked'))
+                               .map(x => parseInt(x.value));
+            if (!ports.length) { alert('Sélectionnez au moins un port.'); return; }
+            body.ports = ports;
+            nbPorts = ports.length;
+        }
+
+        document.getElementById('btnScan').disabled = true;
+        document.getElementById('progressSection').style.display = 'block';
+        document.getElementById('resultSection').style.display = 'none';
+
+        const resp = await fetch('/multiport/lancer_scan_multiport', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        });
+
+        const data = await resp.json();
+        if (!data.succes) {
+            alert('Erreur : ' + data.erreur);
+            document.getElementById('btnScan').disabled = false;
+            document.getElementById('progressSection').style.display = 'none';
+            return;
+        }
+
+        // Mémorise le scan pour pouvoir le reprendre après un rechargement.
+        localStorage.setItem(SCAN_KEY, JSON.stringify({scanId: data.scan_id}));
+        ouvrirFlux(data.scan_id, false);
+    }
+
+    // Flux SSE : phases + chaque port détecté en temps réel, puis 'done'.
+    function ouvrirFlux(scanId, reconnexion) {
+        if (evtSource) evtSource.close();
+        document.getElementById('btnScan').disabled = true;
+        document.getElementById('progressSection').style.display = 'block';
+        document.getElementById('resultBody').innerHTML = '';
+
+        evtSource = new EventSource(`/multiport/scan_multiport_stream/${scanId}`);
+        evtSource.onmessage = (e) => {
+            const ev = JSON.parse(e.data);
+            if (ev.type === 'phase') {
+                majProgress(ev.progression);
+            } else if (ev.type === 'finding') {
+                majProgress(ev.progression);
+                ajouterLignePort(ev.item);   // ports fermés ignorés à l'intérieur
+            } else if (ev.type === 'done') {
+                evtSource.close(); evtSource = null;
+                majProgress(100);
+                document.getElementById('progressSection').style.display = 'none';
+                document.getElementById('btnScan').disabled = false;
+                afficherResultats(ev.resultat);   // rendu direct depuis le payload ; garde SCAN_KEY
+            } else if (ev.type === 'error') {
+                evtSource.close(); evtSource = null;
+                localStorage.removeItem(SCAN_KEY);
+                document.getElementById('progressSection').style.display = 'none';
+                document.getElementById('btnScan').disabled = false;
+                if (!reconnexion) alert('Erreur : ' + ev.message);
+            }
+        };
+        evtSource.onerror = () => {};   // EventSource se reconnecte seul
+    }
+
+    function majProgress(pct) {
+        if (pct == null) return;
+        const p = Math.min(Math.round(pct), 100);
+        document.getElementById('progressBar').style.width = p + '%';
+        document.getElementById('progressPct').textContent = p + '%';
+    }
+
+    // Ligne de port partielle (aperçu live ; remplacée par le tableau complet au 'done').
+    function ajouterLignePort(item) {
+        // Port fermé / non-TLS : non pertinent dans les résultats du scan, on l'ignore.
+        if (item.statut === 'ERREUR') return;
+        document.getElementById('resultSection').style.display = 'block';
+        let tlsHtml = '-';
+        if (item.tls) {
+            const cls = item.tls === 'TLS1.3' ? 'tls-13' : item.tls === 'TLS1.2' ? 'tls-12' : 'tls-old';
+            tlsHtml = `<span class="tls-badge ${cls}">${item.tls}</span>`;
+        }
+        const s = item.score || 0;
+        const sCls = s < 3 ? 'low' : s < 6 ? 'mid' : 'high';
+        const statutHtml = item.statut === 'ERREUR'
+            ? '<span class="erreur-cell">Fermé / Erreur</span>'
+            : '<span style="color:#3fb950;font-weight:600;">✓ OK</span>';
+        const svc = item.logiciel
+            ? `${item.protocole || '-'} <small style="color:#58a6ff">(${item.logiciel})</small>`
+            : (item.protocole || '-');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${item.port}</strong></td>
+            <td>${svc}</td>
+            <td>${tlsHtml}</td>
+            <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;">${item.cn || '-'}</td>
+            <td>—</td>
+            <td>—</td>
+            <td><span class="score-cell ${sCls}">${s}</span></td>
+            <td>${statutHtml}</td>`;
+        document.getElementById('resultBody').appendChild(tr);
+    }
+
+    function afficherResultats(data) {
+        if (!data || data.erreur) return;   // rendu direct depuis le payload SSE 'done'
+
+        // Score global
+        const score = data.score_global || 0;
+        let scoreCls = score < 3 ? 'score-low' : score < 6 ? 'score-mid' : 'score-high';
+        document.getElementById('scoreGlobal').innerHTML =
+            `<span class="score-badge ${scoreCls}">Score global : ${score}/10</span>`;
+
+        // Observation IA
+        if (data.observation_ia) {
+            document.getElementById('obsBox').style.display = 'block';
+            document.getElementById('obsBox').innerHTML =
+                '<strong><i class="fas fa-robot me-2"></i>Observation IA :</strong><br>' + data.observation_ia;
+        }
+
+        // Tableau — on masque les ports fermés / non-TLS (statut ERREUR).
+        let html = '';
+        (data.resultats || []).filter(r => r.statut !== 'ERREUR').forEach(r => {
+            // TLS badge
+            let tlsHtml = '-';
+            if (r.tls_preferé) {
+                const cls = r.tls_preferé === 'TLS1.3' ? 'tls-13'
+                          : r.tls_preferé === 'TLS1.2' ? 'tls-12' : 'tls-old';
+                tlsHtml = `<span class="tls-badge ${cls}">${r.tls_preferé}</span>`;
+            }
+
+            // Certificat
+            const cn = r.certificat_cn || '-';
+            const certHtml = r.certificat_expire
+                ? '<span class="cert-ko">❌ Expiré</span>'
+                : '<span class="cert-ok">✅ Valide</span>';
+
+            // Vulnérabilités — toutes les failles détectées (protocoles faibles inclus),
+            // pas seulement Heartbleed/ROBOT/CCS. Source : findings (base du score).
+            const vulns = (r.findings || []).map(nom =>
+                `<span class="vuln-badge vuln-robot">${nom}</span>`);
+            const vulnsHtml = vulns.length
+                ? vulns.join('')
+                : '<span class="vuln-none">✓ Aucune</span>';
+
+            // Score port
+            const s = r.score_risque_port || 0;
+            const sCls = s < 3 ? 'low' : s < 6 ? 'mid' : 'high';
+            const scoreHtml = `<span class="score-cell ${sCls}">${s}</span>`;
+
+            // Statut port (erreur ou ok)
+            const statutHtml = r.statut === 'ERREUR'
+                ? `<span class="erreur-cell" title="${r.erreur || ''}">Fermé / Erreur</span>`
+                : '<span style="color:#3fb950;font-weight:600;">✓ OK</span>';
+
+            const svc = r.logiciel ? `${r.protocole} <small style="color:#58a6ff">(${r.logiciel})</small>` : (r.protocole || '-');
+            html += `<tr>
+                <td><strong>${r.port}</strong></td>
+                <td>${svc}</td>
+                <td>${tlsHtml}</td>
+                <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;" title="${cn}">${cn}</td>
+                <td>${certHtml}</td>
+                <td>${vulnsHtml}</td>
+                <td>${scoreHtml}</td>
+                <td>${statutHtml}</td>
+            </tr>`;
+        });
+
+        document.getElementById('resultBody').innerHTML = html;
+        document.getElementById('resultSection').style.display = 'block';
+    }
+
+    // ── Reprise au chargement ───────────────────────────────────────────────────
+    // Si un scan était en cours (ou vient de finir), on s'y reconnecte au lieu de
+    // repartir d'une page vide.
+    window.addEventListener('DOMContentLoaded', () => {
+        const saved = localStorage.getItem(SCAN_KEY);
+        if (!saved) return;
+        try {
+            const {scanId} = JSON.parse(saved);
+            if (!scanId) return;
+            ouvrirFlux(scanId, true);
+        } catch (e) {
+            localStorage.removeItem(SCAN_KEY);
+        }
+    });
+</script>
+</body>
+</html>

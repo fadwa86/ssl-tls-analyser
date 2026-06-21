@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TLS Analyser — Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0d1117;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .login-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 40px;
+            width: 420px;
+        }
+        .logo { color: #58a6ff; font-size: 24px; font-weight: bold; margin-bottom: 8px; }
+        .subtitle { color: #8b949e; font-size: 13px; margin-bottom: 24px; }
+        .form-label { color: #c9d1d9; font-size: 13px; }
+        .form-control {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            border-radius: 6px;
+            padding: 10px 14px;
+        }
+        .form-control:focus {
+            background: #0d1117;
+            border-color: #58a6ff;
+            color: #c9d1d9;
+            box-shadow: 0 0 0 3px rgba(88,166,255,0.1);
+        }
+        .btn-login {
+            background: #238636;
+            border: none;
+            color: white;
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-login:hover { background: #2ea043; }
+        .btn-inscription {
+            background: transparent;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .btn-inscription:hover {
+            border-color: #58a6ff;
+            color: #58a6ff;
+        }
+        .btn-submit-inscription {
+            background: #1f6feb;
+            border: none;
+            color: white;
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-submit-inscription:hover { background: #388bfd; }
+        .btn-retour {
+            background: transparent;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            width: 100%;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-top: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-retour:hover { border-color: #58a6ff; color: #58a6ff; }
+        .alert-error {
+            background: #3d1c1c;
+            border: 1px solid #f85149;
+            color: #f85149;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+        .alert-success {
+            background: #1a4a1a;
+            border: 1px solid #3fb950;
+            color: #3fb950;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+        .lock-icon { font-size: 40px; margin-bottom: 16px; }
+        .form-section { display: none; }
+        .form-section.active { display: block; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="lock-icon">🔒</div>
+        <div class="logo">SSL/TLS Analyser</div>
+        <div class="subtitle">PFE — Système d'analyse de vulnérabilités SSL/TLS</div>
+
+        <!-- Alertes -->
+        {% if error %}
+        <div class="alert-error">Identifiants incorrects. Veuillez réessayer.</div>
+        {% endif %}
+
+        {% if bloque %}
+<div class="alert-error">
+    🔒 {{ bloque }}
+</div>
+{% endif %}
+
+{% if error %}
+<div class="alert-error">
+    ❌ Identifiants incorrects.
+    {% if restantes == 2 %}
+        Il vous reste <strong>2 tentatives</strong>.
+    {% elif restantes == 1 %}
+        Attention ! Il vous reste <strong>1 tentative</strong> avant blocage.
+    {% endif %}
+</div>
+{% endif %}
+
+        {% if succes_inscription %}
+        <div class="alert-success">✓ {{ succes_inscription }}</div>
+        {% endif %}
+
+        <!-- Formulaire Login -->
+        <div class="form-section active" id="form-login">
+            <form method="POST" action="/login" autocomplete="off">
+                <div class="mb-3">
+                    <label class="form-label">Login</label>
+                    <input type="text" class="form-control" name="login"
+                        placeholder="Entrez votre login" required autocomplete="off">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Mot de passe</label>
+                    <input type="password" class="form-control" name="password"
+                        placeholder="Entrez votre mot de passe" required autocomplete="new-password">
+                </div>
+                <div class="mb-3">
+    <label class="form-label">Rôle</label>
+    <select class="form-control" name="role" required>
+        <option value="">-- Sélectionner un rôle --</option>
+        <option value="Administrateur">Administrateur</option>
+        <option value="Analyste de sécurité">Analyste de sécurité</option>
+    </select>
+</div>
+                <button type="submit" class="btn-login">Se connecter</button>
+            </form>
+            <!-- Bouton S'inscrire en dessous -->
+            <button class="btn-inscription" onclick="showInscription()">
+                Pas encore de compte ? S'inscrire
+            </button>
+        </div>
+
+        <!-- Formulaire Inscription -->
+        <div class="form-section" id="form-inscription">
+            <form method="POST" action="/inscription" autocomplete="off">
+                <div class="mb-3">
+                    <label class="form-label">Nom</label>
+                    <input type="text" class="form-control" name="nom"
+                        placeholder="Votre nom" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Prénom</label>
+                    <input type="text" class="form-control" name="prenom"
+                        placeholder="Votre prénom" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" name="email"
+                        placeholder="Votre email" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Login</label>
+                    <input type="text" class="form-control" name="login_inscription"
+                        placeholder="Choisissez un login" required autocomplete="off">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Mot de passe</label>
+                    <input type="password" class="form-control" name="password_inscription"
+                        placeholder="Choisissez un mot de passe" required autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn-submit-inscription">S'inscrire</button>
+            </form>
+            <button class="btn-retour" onclick="showLogin()">
+                ← Retour à la connexion
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+    function showInscription() {
+        document.getElementById('form-login').classList.remove('active');
+        document.getElementById('form-inscription').classList.add('active');
+    }
+
+    function showLogin() {
+        document.getElementById('form-inscription').classList.remove('active');
+        document.getElementById('form-login').classList.add('active');
+    }
+
+    // Si erreur inscription → afficher formulaire inscription
+    {% if erreur_inscription %}
+    showInscription();
+    {% endif %}
+
+    // Si succès inscription → rester sur login et afficher message
+    {% if succes_inscription %}
+    showLogin();
+    {% endif %}
+    </script>
+</body>
+</html>

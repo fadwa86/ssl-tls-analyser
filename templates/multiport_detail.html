@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TLS Analyser — Détail Scan Multi-Port</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0d1117; color: #c9d1d9; font-family: 'Segoe UI', sans-serif; display: flex; }
+        .main { margin-left: 220px; flex: 1; padding: 24px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .header h1 { font-size: 20px; color: #c9d1d9; font-weight: 600; }
+        .btn-back { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; }
+        .btn-back:hover { background: #30363d; color: #c9d1d9; }
+        .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .info-card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; }
+        .info-card .label { font-size: 11px; color: #8b949e; text-transform: uppercase; margin-bottom: 6px; }
+        .info-card .value { font-size: 16px; color: #c9d1d9; font-weight: 500; }
+        .obs-box { background: #0d2230; border-left: 4px solid #58a6ff; border-radius: 0 8px 8px 0; padding: 14px 18px; font-size: 13px; color: #9cd2f0; margin-bottom: 24px; white-space: pre-line; }
+        .table-section { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; }
+        .table-section h2 { font-size: 15px; margin-bottom: 16px; color: #c9d1d9; }
+        table.ports { width: 100%; border-collapse: collapse; font-size: 13px; }
+        table.ports th { font-size: 11px; color: #8b949e; text-transform: uppercase; padding: 10px 12px; text-align: left; border-bottom: 1px solid #30363d; }
+        table.ports td { padding: 12px; border-bottom: 1px solid #21262d; color: #c9d1d9; }
+        table.ports tbody tr:hover { background: #1c2333; }
+        .tls-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .tls-13 { background: #1f3a1f; color: #3fb950; }
+        .tls-12 { background: #0d2a4d; color: #58a6ff; }
+        .tls-old { background: #3d0f0f; color: #f85149; }
+        .vuln-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin: 2px; background: #3d2a0f; color: #d29922; }
+        .vuln-none { color: #3fb950; font-weight: 600; }
+        .cert-ok { color: #3fb950; font-weight: 600; }
+        .cert-ko { color: #f85149; font-weight: 600; }
+        .score-cell { font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .score-cell.low { background: #1f3a1f; color: #3fb950; }
+        .score-cell.mid { background: #3d2a0f; color: #d29922; }
+        .score-cell.high { background: #3d0f0f; color: #f85149; }
+        .ok { color: #3fb950; font-weight: 600; }
+        .ferme { color: #8b949e; font-style: italic; font-size: 12px; }
+        /* Mode clair (suit body.light-mode comme le reste de l'app) */
+        body.light-mode { background: #ffffff; color: #1a1a1a; }
+        body.light-mode .main { background: #ffffff; }
+        body.light-mode .info-card,
+        body.light-mode .table-section { background: #f5f5f5; border-color: #e0e0e0; }
+        body.light-mode .info-card .value,
+        body.light-mode table.ports td { color: #1a1a1a; }
+        body.light-mode table.ports th,
+        body.light-mode .info-card .label { color: #666666; }
+        body.light-mode .obs-box { background: #f0f9ff; color: #0c4a6e; }
+        body.light-mode .btn-back { background: #e8e8e8; border-color: #d0d0d0; color: #1a1a1a; }
+    </style>
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main">
+    <div class="header">
+        <h1><i class="bi bi-hdd-network"></i> Scan Multi-Port #{{ scan.id }}</h1>
+        <a href="/historique" class="btn-back">← Retour historique</a>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-card">
+            <div class="label">Cible</div>
+            <div class="value">{{ cible.nom if cible else 'Inconnu' }}</div>
+        </div>
+        <div class="info-card">
+            <div class="label">Date</div>
+            <div class="value">{{ scan.started_at.strftime('%d/%m/%Y %H:%M') if scan.started_at else '—' }}</div>
+        </div>
+        <div class="info-card">
+            <div class="label">Statut</div>
+            <div class="value">{{ ('✓ ' + scan.statut) if scan.statut else '—' }}</div>
+        </div>
+        <div class="info-card">
+            <div class="label">Score global</div>
+            <div class="value">{{ '%.2f'|format(scan.score_risque_global) if scan.score_risque_global is not none else '—' }} / 10</div>
+        </div>
+    </div>
+
+    {% if scan.observation_ia %}
+    <div class="obs-box"><strong>🤖 Observation IA :</strong><br>{{ scan.observation_ia }}</div>
+    {% endif %}
+
+    <div class="table-section">
+        <h2>Détail par port TLS ({{ ports|length }})</h2>
+        {% if ports %}
+        <table class="ports">
+            <thead>
+                <tr>
+                    <th>Port</th>
+                    <th>Protocole</th>
+                    <th>TLS</th>
+                    <th>Certificat CN</th>
+                    <th>Validité</th>
+                    <th>Vulnérabilités</th>
+                    <th>Score</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in ports %}
+                <tr>
+                    <td><strong>{{ p.port }}</strong></td>
+                    <td>{{ p.protocole or '-' }}{% if p.starttls %} <small style="color:#58a6ff">(STARTTLS)</small>{% endif %}</td>
+                    <td>
+                        {% if p.tls %}
+                            {% set cls = 'tls-13' if p.tls == 'TLS1.3' else ('tls-12' if p.tls == 'TLS1.2' else 'tls-old') %}
+                            <span class="tls-badge {{ cls }}">{{ p.tls }}</span>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;" title="{{ p.cn or '' }}">{{ p.cn or '-' }}</td>
+                    <td>
+                        {% if p.statut == 'ERREUR' %}—
+                        {% elif p.expire %}<span class="cert-ko">❌ Expiré</span>
+                        {% else %}<span class="cert-ok">✅ Valide</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if p.statut == 'ERREUR' %}—
+                        {% elif p.findings %}{% for f in p.findings %}<span class="vuln-badge">{{ f }}</span>{% endfor %}
+                        {% else %}<span class="vuln-none">✓ Aucune</span>{% endif %}
+                    </td>
+                    <td>
+                        {% set s = p.score or 0 %}
+                        {% set scls = 'low' if s < 3 else ('mid' if s < 6 else 'high') %}
+                        <span class="score-cell {{ scls }}">{{ s }}</span>
+                    </td>
+                    <td>
+                        {% if p.statut == 'ERREUR' %}<span class="ferme">Fermé / Erreur</span>
+                        {% else %}<span class="ok">✓ OK</span>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align:center; padding:40px; color:#8b949e;">Aucun port TLS détecté pour ce scan.</div>
+        {% endif %}
+    </div>
+</div>
+
+</body>
+</html>

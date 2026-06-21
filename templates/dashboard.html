@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TLS Analyser — Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0d1117; color: #c9d1d9; font-family: 'Segoe UI', sans-serif; display: flex; }
+        .sidebar { width: 220px; min-height: 100vh; background: #161b22; border-right: 1px solid #30363d; padding: 20px 0; position: fixed; display: flex; flex-direction: column; }
+        .sidebar .logo { color: #58a6ff; font-size: 18px; font-weight: bold; padding: 0 20px 20px 20px; border-bottom: 1px solid #30363d; }
+        .sidebar .logo span { color: #8b949e; font-size: 11px; display: block; font-weight: normal; }
+        .sidebar .section-title { color: #8b949e; font-size: 11px; padding: 20px 20px 8px 20px; text-transform: uppercase; letter-spacing: 1px; }
+        .sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 20px; color: #8b949e; text-decoration: none; font-size: 14px; transition: all 0.2s; }
+        .sidebar a:hover, .sidebar a.active { background: #21262d; color: #c9d1d9; border-left: 3px solid #58a6ff; }
+        .sidebar-spacer { flex: 1; }
+        .admin-info { padding: 14px 20px; border-top: 1px solid #30363d; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: background 0.2s; cursor: pointer; }
+        .admin-info:hover { background: #21262d; }
+        .admin-avatar { width: 32px; height: 32px; background: #58a6ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; color: white; flex-shrink: 0; text-transform: uppercase; }
+        .admin-name  { font-size: 13px; color: #c9d1d9; }
+        .admin-email { font-size: 11px; color: #8b949e; }
+        .main { margin-left: 220px; flex: 1; padding: 24px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .header h1 { font-size: 20px; color: #c9d1d9; font-weight: 600; }
+        .badge-status { background: #1a4a1a; color: #3fb950; border: 1px solid #3fb950; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+        .scan-bar { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px 20px; display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
+        .scan-bar input { flex: 1; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 10px 14px; border-radius: 6px; font-size: 14px; }
+        .scan-bar input:focus { outline: none; border-color: #58a6ff; }
+        .btn-scan { background: #1f6feb; border: none; color: white; padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+        .btn-scan:hover { background: #388bfd; }
+        .btn-scan.btn-stop { background: #da3633; }
+        .btn-scan.btn-stop:hover { background: #f85149; }
+        .cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 24px; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; min-width: 0; overflow: hidden; }
+        .card .card-label { font-size: 10px; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card .card-value { font-size: 28px; font-weight: bold; margin-bottom: 4px; }
+        .card .card-sub { font-size: 11px; color: #8b949e; }
+        .card-critical .card-value { color: #f85149; }
+        .card-high     .card-value { color: #d29922; }
+        .card-medium   .card-value { color: #3fb950; }
+        .card-score    .card-value { color: #3fb950; }
+        .card-cert     .card-value { color: #58a6ff; font-size: 16px; }
+        .content-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+        .table-section { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; }
+        .table-section h2 { font-size: 15px; margin-bottom: 16px; color: #c9d1d9; }
+        .vuln-table { width: 100%; border-collapse: collapse; }
+        .vuln-table th { font-size: 11px; color: #8b949e; text-transform: uppercase; padding: 8px 12px; text-align: left; border-bottom: 1px solid #30363d; }
+        .vuln-table td { padding: 12px; font-size: 13px; border-bottom: 1px solid #21262d; }
+        .badge-critical { background: #3d0f0f; color: #f85149; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
+        .badge-high     { background: #3d2a0f; color: #d29922; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
+        .badge-medium   { background: #1f3a1f; color: #3fb950; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
+        .badge-low      { background: #21262d; color: #8b949e; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
+        .badge-live     { background: #1a4a1a; color: #3fb950; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px; }
+        .badge-statique { background: #21262d; color: #8b949e; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px; }
+        .prio-section { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; }
+        .prio-section h2 { font-size: 15px; margin-bottom: 16px; color: #c9d1d9; }
+        .prio-item { margin-bottom: 14px; }
+        .prio-item .prio-name { font-size: 13px; margin-bottom: 4px; display: flex; justify-content: space-between; }
+        .prio-bar { height: 6px; background: #21262d; border-radius: 3px; }
+        .prio-bar-fill { height: 6px; border-radius: 3px; }
+        .fill-critical { background: #f85149; }
+        .fill-high     { background: #d29922; }
+        .fill-medium   { background: #3fb950; }
+        .fill-low      { background: #8b949e; }
+        .empty-state { text-align: center; padding: 40px; color: #8b949e; }
+        .empty-state i { font-size: 48px; margin-bottom: 12px; display: block; }
+        body.light-mode { background: #ffffff !important; color: #1a1a1a !important; }
+        body.light-mode .sidebar { background: #f5f5f5 !important; border-right: 1px solid #e0e0e0 !important; }
+        body.light-mode .sidebar a { color: #444444 !important; }
+        body.light-mode .sidebar .logo { color: #1f6feb !important; }
+        body.light-mode .sidebar .section-title { color: #666666 !important; }
+        body.light-mode .sidebar a:hover, body.light-mode .sidebar a.active { background: #e8e8e8 !important; color: #1a1a1a !important; }
+        body.light-mode .main { background: #ffffff !important; }
+        body.light-mode .card, body.light-mode .scan-bar, body.light-mode .table-section, body.light-mode .prio-section { background: #f5f5f5 !important; border-color: #e0e0e0 !important; }
+        body.light-mode .scan-bar input { background: #ffffff !important; border-color: #e0e0e0 !important; color: #1a1a1a !important; }
+        body.light-mode .vuln-table td { color: #1a1a1a !important; border-bottom: 1px solid #e0e0e0 !important; }
+        body.light-mode .vuln-table th { color: #666666 !important; border-bottom: 1px solid #e0e0e0 !important; }
+        body.light-mode .admin-name { color: #1a1a1a !important; }
+    </style>
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<!-- MAIN -->
+<div class="main">
+    <div class="header">
+        <div style="text-align:center; margin-bottom:16px;">
+            <span style="font-size:18px; color:#8b949e;">
+                👋 Bienvenue, <span style="color:#58a6ff; font-weight:600; font-size:20px;">{{ admin.prenom }} {{ admin.nom }}</span>
+            </span>
+        </div>
+        <h1>Dashboard — Analyse SSL/TLS</h1>
+        <span class="badge-status">● Système opérationnel</span>
+    </div>
+
+    <!-- SCAN BAR -->
+    <div class="scan-bar">
+        <span style="color:#8b949e; font-size:13px">CIBLE</span>
+        <input type="text" id="cibleInput" placeholder="https://example.com ou 192.168.1.1">
+        <button class="btn-scan" id="btnScan" onclick="lancerScan()">▶ Lancer le scan</button>
+    </div>
+
+    <!-- CARDS -->
+    <div class="cards">
+        <div class="card card-critical">
+            <div class="card-label">Vulnérabilités critiques</div>
+            <div class="card-value" id="nbCritique">—</div>
+        </div>
+        <div class="card card-high">
+            <div class="card-label">Vulnérabilités élevées</div>
+            <div class="card-value" id="nbHigh">—</div>
+        </div>
+        <div class="card card-medium">
+            <div class="card-label">Vulnérabilités moyennes</div>
+            <div class="card-value" id="nbMedium">—</div>
+        </div>
+        <div class="card card-score">
+            <div class="card-label">Score TLS Global</div>
+            <div class="card-value" id="scoreTLS">—</div>
+            <div class="card-sub">Objectif : A (PCI-DSS)</div>
+        </div>
+        <div class="card card-cert">
+            <div class="card-label">Expiration Certificat</div>
+            <div class="card-value" id="expCert">—</div>
+        </div>
+    </div>
+
+    <!-- CONTENT GRID -->
+    <div class="content-grid">
+        <div class="table-section">
+            <h2>Vulnérabilités détectées</h2>
+            <div id="tableContent">
+                <div class="empty-state">
+                    <i class="bi bi-shield"></i>
+                    Lancez un scan pour voir les vulnérabilités
+                </div>
+            </div>
+        </div>
+        <div class="prio-section">
+            <h2>✦ Priorisation IA</h2>
+            <div id="prioContent">
+                <div class="empty-state">
+                    <i class="bi bi-robot"></i>
+                    En attente d'un scan
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- FIN MAIN -->
+
+<script>
+// ── Thème ─────────────────────────────────────────────────────────────────
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
+    document.getElementById('themeIcon').textContent = '☀️';
+    document.getElementById('themeText').textContent = 'Mode sombre';
+}
+function toggleTheme() {
+    document.body.classList.toggle('light-mode');
+    const isLight = document.body.classList.contains('light-mode');
+    document.getElementById('themeIcon').textContent = isLight ? '☀️' : '🌙';
+    document.getElementById('themeText').textContent = isLight ? 'Mode sombre' : 'mode  clair';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+
+// ── Scan (Server-Sent Events : phases + findings en temps réel) ─────────────
+let evtSource = null;
+const SCAN_KEY = 'scan_simple_en_cours';   // mémorise le scan pour reprise au reload
+
+// Bascule le bouton entre « Lancer » et « Arrêter » selon l'état du scan.
+function setScanningUI(enCours) {
+    const btn = document.getElementById('btnScan');
+    if (!btn) return;
+    if (enCours) {
+        btn.innerHTML = '⏹ Arrêter le scan';
+        btn.classList.add('btn-stop');
+        btn.onclick = arreterScan;
+    } else {
+        btn.innerHTML = '▶ Lancer le scan';
+        btn.classList.remove('btn-stop');
+        btn.onclick = lancerScan;
+    }
+}
+
+function arreterScan() {
+    // Arrêt côté interface : ferme le flux et réinitialise.
+    // ponytail: le thread serveur n'est pas annulable (SSLyze synchrone) ; il se
+    // termine seul et son résultat reste consultable dans l'historique.
+    if (evtSource) { evtSource.close(); evtSource = null; }
+    localStorage.removeItem(SCAN_KEY);
+    reinitCartes();
+    document.getElementById('tableContent').innerHTML =
+        '<div class="empty-state"><i class="bi bi-slash-circle"></i> Scan arrêté</div>';
+    document.getElementById('prioContent').innerHTML =
+        '<div class="empty-state"><i class="bi bi-robot"></i> En attente d\'un scan</div>';
+    setScanningUI(false);
+}
+
+function lancerScan() {
+    const cible = document.getElementById('cibleInput').value;
+    if (!cible) { alert('Veuillez saisir une cible !'); return; }
+
+    // Reset cartes
+    document.getElementById('scoreTLS').textContent   = '...';
+    document.getElementById('expCert').textContent    = '...';
+    document.getElementById('nbCritique').textContent = '...';
+    document.getElementById('nbHigh').textContent     = '...';
+    document.getElementById('nbMedium').textContent   = '...';
+    majPhase('Démarrage du scan…', 0);
+    setScanningUI(true);
+
+    fetch('/lancer_scan', {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ cible: cible })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.succes) {
+            localStorage.setItem(SCAN_KEY, data.scan_id);
+            ouvrirFlux(data.scan_id, false);
+        } else {
+            alert('Erreur : ' + data.erreur);
+            reinitCartes();
+            setScanningUI(false);
+        }
+    })
+    .catch(err => {
+        alert('Erreur réseau : ' + err);
+        reinitCartes();
+        setScanningUI(false);
+    });
+}
+
+// Ouvre le flux SSE et applique chaque évènement au fur et à mesure.
+function ouvrirFlux(scanId, reconnexion) {
+    if (evtSource) evtSource.close();
+    setScanningUI(true);
+    const findings = [];
+    evtSource = new EventSource(`/scan_stream/${scanId}`);
+
+    evtSource.onmessage = (e) => {
+        const ev = JSON.parse(e.data);
+        if (ev.type === 'phase') {
+            majPhase(ev.message, ev.progression);
+        } else if (ev.type === 'finding') {
+            findings.push(ev.item);
+            afficherFindingsLive(findings);
+        } else if (ev.type === 'done') {
+            evtSource.close(); evtSource = null;
+            const r = ev.resultat || {};
+            afficherResultats(r.vulnerabilites || [], r.score_tls, r.expiration);
+            setScanningUI(false);            // on garde SCAN_KEY -> ré-affichage au reload
+        } else if (ev.type === 'error') {
+            evtSource.close(); evtSource = null;
+            localStorage.removeItem(SCAN_KEY);
+            reinitCartes();
+            setScanningUI(false);
+            if (!reconnexion) {
+                alert('Erreur scan : ' + ev.message);
+            } else {
+                document.getElementById('tableContent').innerHTML =
+                    '<div class="empty-state"><i class="bi bi-shield"></i> Lancez un scan pour voir les vulnérabilités</div>';
+            }
+        }
+    };
+    // EventSource se reconnecte seul en cas de coupure réseau ; rien à faire ici.
+    evtSource.onerror = () => {};
+}
+
+function majPhase(message, pct) {
+    document.getElementById('prioContent').innerHTML =
+        `<div class="empty-state"><i class="bi bi-hourglass-split"></i> ${message || 'Analyse…'}${pct != null ? ' (' + pct + '%)' : ''}</div>`;
+    const t = document.getElementById('tableContent');
+    if (!t.querySelector('table')) {
+        t.innerHTML = `<div class="empty-state"><i class="bi bi-search"></i> ${message || 'Analyse…'}</div>`;
+    }
+}
+
+// Rendu incrémental des vulnérabilités au fil du flux.
+function afficherFindingsLive(findings) {
+    document.getElementById('nbCritique').textContent = findings.filter(v => v.severite === 'CRITICAL').length;
+    document.getElementById('nbHigh').textContent     = findings.filter(v => v.severite === 'HIGH').length;
+    document.getElementById('nbMedium').textContent   = findings.filter(v => v.severite === 'MEDIUM').length;
+
+    let html = `<table class="vuln-table"><thead><tr>
+        <th>NOM</th><th>CVE</th><th>TYPE</th><th>SÉVÉRITÉ</th><th>SCORE IA</th>
+    </tr></thead><tbody>`;
+    findings.forEach(v => {
+        const bc = v.severite === 'CRITICAL' ? 'badge-critical'
+                 : v.severite === 'HIGH'     ? 'badge-high'
+                 : v.severite === 'MEDIUM'   ? 'badge-medium' : 'badge-low';
+        const src = v.source === 'temps_reel'
+            ? '<span class="badge-live">🟢 Live</span>'
+            : '<span class="badge-statique">⚪ Statique</span>';
+        html += `<tr>
+            <td>${v.nom}</td>
+            <td style="color:#8b949e">${v.cve} ${src}</td>
+            <td style="color:#8b949e">${v.type}</td>
+            <td><span class="${bc}">${v.severite}</span></td>
+            <td style="color:#58a6ff; font-weight:bold">${v.criticite}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('tableContent').innerHTML = html;
+}
+
+// Reprise au chargement : si un scan était en cours (ou vient de finir), on s'y
+// reconnecte au lieu de repartir d'une page vide.
+window.addEventListener('DOMContentLoaded', () => {
+    const sid = localStorage.getItem(SCAN_KEY);
+    if (sid) ouvrirFlux(sid, true);
+});
+
+function reinitCartes() {
+    document.getElementById('scoreTLS').textContent   = '—';
+    document.getElementById('expCert').textContent    = '—';
+    document.getElementById('nbCritique').textContent = '—';
+    document.getElementById('nbHigh').textContent     = '—';
+    document.getElementById('nbMedium').textContent   = '—';
+}
+
+// ── Afficher résultats ────────────────────────────────────────────────────
+function afficherResultats(vulns, scoreTLS, expiration) {
+    // Compteurs par sévérité (calculée après RF)
+    const critiques = vulns.filter(v => v.severite === 'CRITICAL').length;
+    const high      = vulns.filter(v => v.severite === 'HIGH').length;
+    const medium    = vulns.filter(v => v.severite === 'MEDIUM').length;
+
+    document.getElementById('nbCritique').textContent = critiques;
+    document.getElementById('nbHigh').textContent     = high;
+    document.getElementById('nbMedium').textContent   = medium;
+
+    // Score TLS global
+    const scoreEl = document.getElementById('scoreTLS');
+    scoreEl.textContent = scoreTLS || '—';
+    if      (scoreTLS === 'A') scoreEl.style.color = '#3fb950';
+    else if (scoreTLS === 'B') scoreEl.style.color = '#58a6ff';
+    else if (scoreTLS === 'C') scoreEl.style.color = '#d29922';
+    else                       scoreEl.style.color = '#f85149';
+
+    // Expiration certificat
+    const expEl = document.getElementById('expCert');
+    if (expiration && expiration.includes('EXPIRÉ')) {
+        const parts = expiration.split(' ⚠️ ');
+        expEl.innerHTML = parts[0] +
+            '<br><span style="color:#f85149; font-size:11px; font-weight:bold;">⚠️ Certificat expiré</span>';
+        expEl.style.color = '#f85149';
+    } else {
+        expEl.textContent = expiration || 'N/A';
+        expEl.style.color = '#58a6ff';
+    }
+
+    // Tableau vide
+    if (vulns.length === 0) {
+        document.getElementById('tableContent').innerHTML =
+            '<div class="empty-state"><i class="bi bi-shield-check"></i> Aucune vulnérabilité détectée</div>';
+        document.getElementById('prioContent').innerHTML =
+            '<div class="empty-state"><i class="bi bi-check-circle"></i> Aucune vulnérabilité</div>';
+        return;
+    }
+
+    // ── Tableau vulnérabilités triées par score IA décroissant ───────────
+    // (déjà triées par agent.py — on affiche dans cet ordre)
+    let html = `<table class="vuln-table">
+        <thead>
+            <tr>
+                <th>NOM</th>
+                <th>CVE</th>
+                <th>TYPE</th>
+                <th>SÉVÉRITÉ</th>
+                <th>SCORE IA</th>
+            </tr>
+        </thead>
+        <tbody>`;
+
+    vulns.forEach(v => {
+        // Sévérité déterminée APRÈS le score RF
+        const badgeClass = v.severite === 'CRITICAL' ? 'badge-critical'
+                         : v.severite === 'HIGH'     ? 'badge-high'
+                         : v.severite === 'MEDIUM'   ? 'badge-medium'
+                         : 'badge-low';
+
+        const sourceIcon = v.source === 'temps_reel'
+            ? '<span class="badge-live">🟢 Live</span>'
+            : '<span class="badge-statique">⚪ Statique</span>';
+
+        html += `<tr>
+            <td>${v.nom}</td>
+            <td style="color:#8b949e">${v.cve} ${sourceIcon}</td>
+            <td style="color:#8b949e">${v.type}</td>
+            <td><span class="${badgeClass}">${v.severite}</span></td>
+            <td style="color:#58a6ff; font-weight:bold">${v.criticite}</td>
+        </tr>`;
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('tableContent').innerHTML = html;
+
+    // ── Priorisation IA ───────────────────────────────────────────────────
+    let prioHtml = '';
+    vulns.forEach(v => {
+        const fillClass = v.severite === 'CRITICAL' ? 'fill-critical'
+                        : v.severite === 'HIGH'     ? 'fill-high'
+                        : v.severite === 'MEDIUM'   ? 'fill-medium'
+                        : 'fill-low';
+        const pct = (v.criticite / 10 * 100).toFixed(0);
+        prioHtml += `<div class="prio-item">
+            <div class="prio-name">
+                <span>${v.nom}</span>
+                <span>${v.criticite}</span>
+            </div>
+            <div class="prio-bar">
+                <div class="prio-bar-fill ${fillClass}" style="width:${pct}%"></div>
+            </div>
+        </div>`;
+    });
+    document.getElementById('prioContent').innerHTML = prioHtml;
+}
+</script>
+</body>
+</html>
