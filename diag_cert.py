@@ -14,7 +14,8 @@ port = int(sys.argv[2]) if len(sys.argv) > 2 else 443
 print(f"== Scan certificat {host}:{port} ==")
 req = ServerScanRequest(
     server_location=ServerNetworkLocation(hostname=host, port=port),
-    network_configuration=ServerNetworkConfiguration(tls_server_name_indication=host),
+    network_configuration=ServerNetworkConfiguration(
+        tls_server_name_indication=host, network_timeout=15, network_max_retries=5),
     scan_commands={ScanCommand.CERTIFICATE_INFO},
 )
 sc = Scanner()

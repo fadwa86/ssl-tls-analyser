@@ -1,4 +1,4 @@
-from sslyze import Scanner, ServerScanRequest, ServerNetworkLocation
+from sslyze import Scanner, ServerScanRequest, ServerNetworkLocation, ServerNetworkConfiguration
 from sslyze.plugins.scan_commands import ScanCommand
 import requests
 import urllib3
@@ -40,8 +40,15 @@ def scanner_cible(hostname, port=443):
                 port=port
             )
 
+        # Timeout relevé (défaut sslyze = 5 s) : sur connexion lente la poignée
+        # de main échoue → "Connection timed out" et 0 finding. cf. scanner_multiport.
         scan_request = ServerScanRequest(
             server_location=server_location,
+            network_configuration=ServerNetworkConfiguration(
+                tls_server_name_indication=hostname,
+                network_timeout=15,
+                network_max_retries=5
+            ),
             scan_commands={
                 ScanCommand.SSL_2_0_CIPHER_SUITES,
                 ScanCommand.SSL_3_0_CIPHER_SUITES,

@@ -128,14 +128,21 @@ def scanner_port_sslyze(host, port, protocole, use_starttls=False):
     }
 
     try:
+        # network_timeout/max_retries relevés : le défaut sslyze (5 s) coupe la
+        # poignée de main sur connexion lente/latente → "Connection timed out",
+        # 0 protocole, 0 finding alors que le TCP passe. cf. diag_cert.py.
         if use_starttls and protocole in STARTTLS_MAP:
             network_config = ServerNetworkConfiguration(
                 tls_server_name_indication=host,
-                tls_opportunistic_encryption=STARTTLS_MAP[protocole]
+                tls_opportunistic_encryption=STARTTLS_MAP[protocole],
+                network_timeout=15,
+                network_max_retries=5
             )
         else:
             network_config = ServerNetworkConfiguration(
-                tls_server_name_indication=host
+                tls_server_name_indication=host,
+                network_timeout=15,
+                network_max_retries=5
             )
 
         network_location = ServerNetworkLocation(
