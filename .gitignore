@@ -1,0 +1,4 @@
+# Certificat HTTPS auto-signé généré au lancement — ne JAMAIS committer la clé privée.
+cert.pem
+key.pem
+*.tmp

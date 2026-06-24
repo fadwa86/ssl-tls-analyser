@@ -170,6 +170,8 @@ def lancer_comparaison():
 
 @comparison_bp.route('/comparaison_status/<int:comparaison_id>')
 def comparaison_status(comparaison_id):
+    if 'admin_id' not in session:
+        return jsonify({'erreur': 'Non authentifié'}), 401
     if comparaison_id not in comparaisons_en_cours:
         comparaison = ComparaisonScan.query.get(comparaison_id)
         if not comparaison:
@@ -189,6 +191,8 @@ def comparaison_status(comparaison_id):
 def comparaison_stream(comparaison_id):
     """Flux SSE de la comparaison : chaque partie (extraction, corrigées, nouvelles,
     inchangées, score) est diffusée dès qu'elle est calculée."""
+    if 'admin_id' not in session:
+        return jsonify({'erreur': 'Non authentifié'}), 401
     if comparaison_id not in comparaisons_en_cours:
         comparaison = ComparaisonScan.query.get(comparaison_id)
         ev = ({'type': 'done', 'resultat': _serialiser_comparaison(comparaison_id)}

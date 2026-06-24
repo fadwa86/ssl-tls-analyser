@@ -170,6 +170,8 @@ def scan_status(scan_id):
     """État du scan (sans le journal d'évènements). Conservé pour compatibilité ;
     le front utilise désormais /scan_stream (SSE). N'efface plus la mémoire afin de
     permettre la reconnexion après un rechargement."""
+    if 'admin_id' not in session:
+        return jsonify({'erreur': 'Non authentifié'}), 401
     if scan_id not in scans_en_cours:
         return jsonify({'statut': 'INCONNU'})
     etat = scans_en_cours[scan_id]
@@ -179,6 +181,8 @@ def scan_status(scan_id):
 @scan_bp.route('/scan_stream/<int:scan_id>')
 def scan_stream(scan_id):
     """Flux SSE du scan : phases, findings temps réel, puis 'done'/'error'."""
+    if 'admin_id' not in session:
+        return jsonify({'erreur': 'Non authentifié'}), 401
     if scan_id not in scans_en_cours:
         scan = Scan.query.get(scan_id)
         msg = ('Résultat expiré (serveur redémarré). Relancez le scan.'

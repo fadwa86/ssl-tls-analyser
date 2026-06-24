@@ -13,14 +13,26 @@ code consistent with that.
 
 ```bash
 # Install deps (no requirements.txt exists — these are the actual imports)
-pip install flask flask-sqlalchemy flask-bcrypt sslyze requests urllib3 numpy scikit-learn reportlab pymysql weasyprint
+pip install flask flask-sqlalchemy flask-bcrypt flask-wtf sslyze requests urllib3 numpy scikit-learn reportlab pymysql weasyprint
+# flask-wtf provides CSRF protection (CSRFProtect in app.py): POST forms carry
+# {{ csrf_token() }}; JSON fetch() calls send the X-CSRFToken header (read from the
+# <meta name="csrf-token"> tag). SSE/EventSource (GET) endpoints are unaffected.
+# SECRET_KEY (session + CSRF signing) is read from the SECRET_KEY env var, falling back
+# to a dev default — set a random value in production.
 # WeasyPrint (rapport PCI-DSS multi-ports) needs GTK on Windows:
 #   1) install MSYS2 (https://www.msys2.org)  2) MSYS2 shell: pacman -S mingw-w64-x86_64-pango
 #   3) verify: python -m weasyprint --info   (routes/rapport.py auto-sets WEASYPRINT_DLL_DIRECTORIES if C:\msys64 exists)
 # The single-port ReportLab report still works without WeasyPrint.
 
-# Run (dev server, debug=True, http://127.0.0.1:5000)
+# Run (dev server, debug=True, https://127.0.0.1:5000)
 python app.py
+# HTTPS via self-signed cert, auto-generated on first launch (generate_cert.py -> cert.pem
+# + key.pem, gitignored). The browser warns about the self-signed cert on first visit —
+# click "Advanced -> proceed", that's expected. HTTPS-only: plain http:// won't connect, and
+# because session cookies are now Secure, an HTTP request would not establish a session even
+# if it did. To regenerate the cert: delete cert.pem + key.pem and relaunch.
+# CORS is intentionally absent: the app is same-origin (server-rendered Jinja + relative
+# fetch). Add flask-cors only if a separate-origin frontend is ever introduced.
 
 # Retrain the Random Forest model (rewrites agent_ia/modele_rf.pkl)
 python -c "from agent_ia.modele_rf import entrainer_modele; entrainer_modele()"

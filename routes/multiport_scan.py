@@ -168,6 +168,8 @@ def lancer_scan_multiport():
 
 @multiport_bp.route('/scan_multiport_status/<int:scan_id>')
 def scan_multiport_status(scan_id):
+    if 'admin_id' not in session:
+        return jsonify({'erreur': 'Non authentifié'}), 401
     if scan_id not in scans_multiport_en_cours:
         scan = ScanMultiPort.query.get(scan_id)
         if not scan:
@@ -185,6 +187,8 @@ def scan_multiport_status(scan_id):
 @multiport_bp.route('/scan_multiport_stream/<int:scan_id>')
 def scan_multiport_stream(scan_id):
     """Flux SSE du scan multi-port : phases, ports détectés en temps réel, puis 'done'."""
+    if 'admin_id' not in session:
+        return jsonify({'erreur': 'Non authentifié'}), 401
     if scan_id not in scans_multiport_en_cours:
         scan = ScanMultiPort.query.get(scan_id)
         if not scan:

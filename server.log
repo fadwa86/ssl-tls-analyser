@@ -1,3 +1,79 @@
 Tables créées avec succès !
  * Serving Flask app 'app'
  * Debug mode: on
+Tables créées avec succès !
+[NVD] Erreur CVE-2011-3389 : HTTPSConnectionPool(host='services.nvd.nist.gov', port=443): Read timed out. (read timeout=2)
+[API] CVE-2011-3389 → cvss=7.5, epss=0.73327, source=temps_reel
+[NVD] Erreur CVE-2015-0204 : HTTPSConnectionPool(host='services.nvd.nist.gov', port=443): Read timed out. (read timeout=2)
+[API] CVE-2015-0204 → cvss=5.3, epss=0.98685, source=temps_reel
+[CACHE] CVE-2011-3389
+[CACHE] CVE-2015-0204
+Server header : apache
+X-Powered-By  : 
+Server header : apache
+X-Powered-By  : 
+HTTPS échoué: HTTPSConnectionPool(host='badssl.com', port=443): Read timed out. (read timeout=5)
+HTTP échoué: HTTPSConnectionPool(host='badssl.com', port=443): Read timed out. (read timeout=3)
+Contexte SSL permissif échoué: <urlopen error [WinError 10054] An existing connection was forcibly closed by the remote host>
+[CACHE] CVE-2011-3389
+[CACHE] CVE-2015-0204
+[CACHE] CVE-2011-3389
+[CACHE] CVE-2015-0204
+Server header : nginx/1.10.3 (ubuntu)
+X-Powered-By  : 
+[CACHE] CVE-2011-3389
+[CACHE] CVE-2015-0204
+[CACHE] CVE-2011-3389
+[CACHE] CVE-2015-0204
+[CACHE] CVE-2011-3389
+[CACHE] CVE-2015-0204
+Server header : nginx/1.10.3 (ubuntu)
+X-Powered-By  : 
+[CACHE] CVE-2011-3389
+[CACHE] CVE-2015-0204
+[CACHE] CVE-2011-3389
+[CACHE] CVE-2015-0204
+[CACHE] CVE-2011-3389
+[CACHE] CVE-2015-0204
+Server header : nginx/1.10.3 (ubuntu)
+X-Powered-By  : 
+[CACHE] CVE-2011-3389
+[CACHE] CVE-2015-0204
+Server header : apache
+X-Powered-By  : 
+[CACHE] CVE-2011-3389
+[CACHE] CVE-2015-0204
+[CACHE] CVE-2011-3389
+[CACHE] CVE-2015-0204
+Server header : nginx/1.10.3 (ubuntu)
+X-Powered-By  : 
+[CACHE] CVE-2011-3389
+[CACHE] CVE-2015-0204
+Server header : nginx
+X-Powered-By  : 
+Server header : nginx
+X-Powered-By  : 
+Tables créées avec succès !
+Tables créées avec succès !
+Tables créées avec succès !
+Tables créées avec succès !
+Tables créées avec succès !
+Tables créées avec succès !
+Server header : nginx/1.10.3 (ubuntu)
+X-Powered-By  : 
+[NVD] Erreur CVE-2011-3389 : HTTPSConnectionPool(host='services.nvd.nist.gov', port=443): Read timed out. (read timeout=2)
+[API] CVE-2011-3389 → cvss=7.5, epss=0.73327, source=temps_reel
+[API] CVE-2015-0204 → cvss=5.3, epss=0.98685, source=temps_reel
+Server header : nginx/1.10.3 (ubuntu)
+X-Powered-By  : 
+Tables créées avec succès !
+Tables créées avec succès !
+Tables créées avec succès !
+Tables créées avec succès !
+Tables créées avec succès !
+Tables créées avec succès !
+Tables créées avec succès !
+Tables créées avec succès !
+Tables créées avec succès !
+Tables créées avec succès !
+Tables créées avec succès !

@@ -129,6 +129,7 @@
         <div class="section">
             <h2><i class="bi bi-pencil" style="color:#58a6ff"></i> Informations personnelles</h2>
             <form method="POST" action="/profil/modifier">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group">
                     <label class="form-label">Login</label>
                     <input type="text" class="form-input" value="{{ admin.login }}" disabled>
@@ -164,6 +165,7 @@
             {% endif %}
 
             <form method="POST" action="/profil/mot-de-passe">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group">
                     <label class="form-label">Ancien mot de passe</label>
                     <div class="input-eye-wrapper">
@@ -259,6 +261,7 @@
                 Annuler
             </button>
             <form method="POST" action="/profil/supprimer" style="margin:0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" style="background:#f85149; border:none; color:white; padding:10px 24px; border-radius:6px; cursor:pointer; font-size:13px;">
                     <i class="bi bi-trash"></i> Confirmer
                 </button>

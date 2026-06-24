@@ -1,0 +1,206 @@
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:5000
+Press CTRL+C to quit
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+127.0.0.1 - - [21/Jun/2026 19:43:42] "GET /historique/multiport/26 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 19:44:06] "GET /historique HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 22:55:14] "GET /historique HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 22:55:23] "GET /historique/15 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 22:55:30] "GET /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 22:55:31] "GET /multiport/scan_multiport_stream/26 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 22:55:45] "POST /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 22:55:45] "GET /multiport/scan_multiport_stream/27 HTTP/1.1" 200 -
+C:\Users\jawhe\Downloads\ssl-tls-analyser-main\ssl-tls-analyser-main\.venv\Lib\site-packages\sslyze\plugins\certificate_info\trust_stores\trust_store.py:55: CryptographyDeprecationWarning: Parsed a serial number which wasn't positive (i.e., it was negative or zero), which is disallowed by RFC 5280. Loading this certificate will cause an exception in a future release of cryptography.
+  self._x509_store = Store(load_pem_x509_certificates(self.path.read_bytes()))
+127.0.0.1 - - [21/Jun/2026 22:56:59] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 22:57:00] "GET /scan_stream/15 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 22:57:00] "GET /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 22:57:01] "GET /multiport/scan_multiport_stream/27 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 22:57:31] "GET /historique HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 22:57:34] "GET /historique HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 22:57:40] "GET /historique/multiport/27 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 22:57:49] "GET /historique/15 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:02:55] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:04:42] "POST /lancer_scan HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:04:42] "GET /scan_stream/16 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:05:29] "POST /lancer_scan HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:05:29] "GET /scan_stream/17 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:06:50] "GET /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:06:51] "GET /multiport/scan_multiport_stream/27 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:06:52] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:06:53] "GET /scan_stream/17 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:07:44] "GET /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:07:44] "GET /multiport/scan_multiport_stream/27 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:08:28] "POST /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:08:29] "GET /multiport/scan_multiport_stream/28 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:11:21] "POST /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:11:22] "GET /multiport/scan_multiport_stream/29 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:12:30] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:12:31] "GET /scan_stream/17 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:12:40] "POST /lancer_scan HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:12:40] "GET /scan_stream/18 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:14:01] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:14:06] "GET /historique HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:14:08] "GET /historique/17 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:14:15] "GET /historique HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:14:18] "GET /historique/18 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:14:26] "GET /comparison/comparaison_scans HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:14:40] "POST /comparison/comparaison_scans HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:14:41] "GET /comparison/comparaison_stream/12 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:15:13] "GET /rapport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:15:29] "GET /rapport/multiport/generer/29 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:16:17] "GET /rapport/multiport/generer/29 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:17:00] "GET /rapport/multiport/generer/27 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:20:14] "GET /historique HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:20:17] "GET /historique/18 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:20:26] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:20:29] "GET /priorisation HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:20:40] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:20:44] "GET /historique HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:20:51] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:20:55] "POST /lancer_scan HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:20:56] "GET /scan_stream/19 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:21:07] "POST /lancer_scan HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:21:07] "GET /scan_stream/20 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:23:52] "GET /historique HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:23:58] "GET /historique/10 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:24:09] "GET /historique/1 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:24:17] "GET /historique/2 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:24:21] "GET /historique/3 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:24:37] "GET /historique/multiport/28 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:24:41] "GET /historique/multiport/29 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:24:44] "GET /historique/multiport/27 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:25:00] "GET /historique/multiport/25 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:26:39] "GET /historique HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:26:46] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:26:46] "GET /scan_stream/20 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:27:26] "GET /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:27:27] "GET /multiport/scan_multiport_stream/29 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:27:43] "POST /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:27:44] "GET /multiport/scan_multiport_stream/30 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:28:36] "GET /rapport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:28:39] "GET /historique HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:28:42] "GET /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:28:42] "GET /multiport/scan_multiport_stream/30 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:29:03] "POST /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:29:04] "GET /multiport/scan_multiport_stream/31 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:31:32] "GET /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:31:32] "GET /multiport/scan_multiport_stream/31 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:31:43] "GET /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:31:43] "GET /multiport/scan_multiport_stream/31 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:31:51] "GET /priorisation HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:32:46] "GET /priorisation?scan_id=17 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:33:05] "GET /priorisation?scan_id=10 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:34:55] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:34:55] "GET /scan_stream/20 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:34:57] "GET /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:34:57] "GET /multiport/scan_multiport_stream/31 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:36:44] "POST /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:36:44] "GET /multiport/scan_multiport_stream/32 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:38:45] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:38:45] "GET /scan_stream/20 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:38:48] "POST /lancer_scan HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jun/2026 23:38:48] "GET /scan_stream/21 HTTP/1.1" 200 -
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\config.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\config.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\agent_ia\\scanner_multiport.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\agent_ia\\scanner.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\agent_ia\\scanner.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\diag_cert.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+127.0.0.1 - - [22/Jun/2026 01:19:16] "GET / HTTP/1.1" 302 -
+127.0.0.1 - - [22/Jun/2026 01:19:16] "GET /login HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:19:41] "POST /login HTTP/1.1" 302 -
+127.0.0.1 - - [22/Jun/2026 01:19:41] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:19:52] "POST /lancer_scan HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:19:52] "GET /scan_stream/22 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:21:24] "GET /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:21:24] "GET /multiport/scan_multiport_stream/7 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:21:33] "POST /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:21:34] "GET /multiport/scan_multiport_stream/33 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:21:37] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:21:38] "GET /scan_stream/22 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:21:41] "GET /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:21:41] "GET /multiport/scan_multiport_stream/33 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:22:40] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:22:40] "GET /scan_stream/22 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:22:44] "GET /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:22:45] "GET /multiport/scan_multiport_stream/33 HTTP/1.1" 200 -
+C:\Users\jawhe\Downloads\ssl-tls-analyser-main\ssl-tls-analyser-main\.venv\Lib\site-packages\sslyze\plugins\certificate_info\trust_stores\trust_store.py:55: CryptographyDeprecationWarning: Parsed a serial number which wasn't positive (i.e., it was negative or zero), which is disallowed by RFC 5280. Loading this certificate will cause an exception in a future release of cryptography.
+  self._x509_store = Store(load_pem_x509_certificates(self.path.read_bytes()))
+127.0.0.1 - - [22/Jun/2026 01:23:45] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:23:45] "GET /scan_stream/22 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:24:02] "GET /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:24:03] "GET /multiport/scan_multiport_stream/33 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:34:03] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:34:03] "GET /scan_stream/22 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:34:38] "GET /multiport/lancer_scan_multiport HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:34:38] "GET /multiport/scan_multiport_stream/33 HTTP/1.1" 200 -
+127.0.0.1 - - [22/Jun/2026 01:34:48] "GET /historique HTTP/1.1" 200 -
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\config.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\generate_cert.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\routes\\scan.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\routes\\scan.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\routes\\multiport_scan.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\routes\\multiport_scan.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\routes\\comparison_bp.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\routes\\comparison_bp.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\config.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179
+ * Detected change in 'C:\\Users\\jawhe\\Downloads\\ssl-tls-analyser-main\\ssl-tls-analyser-main\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 597-775-179

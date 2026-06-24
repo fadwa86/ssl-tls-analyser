@@ -155,6 +155,7 @@
         <!-- Formulaire Login -->
         <div class="form-section active" id="form-login">
             <form method="POST" action="/login" autocomplete="off">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-3">
                     <label class="form-label">Login</label>
                     <input type="text" class="form-control" name="login"
@@ -184,6 +185,7 @@
         <!-- Formulaire Inscription -->
         <div class="form-section" id="form-inscription">
             <form method="POST" action="/inscription" autocomplete="off">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-3">
                     <label class="form-label">Nom</label>
                     <input type="text" class="form-control" name="nom"
