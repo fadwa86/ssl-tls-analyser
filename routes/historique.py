@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, session, redirect, url_for
 from models.models import db, Scan, Cible, ResultatScan, Administrateur
 from models.models import ScanMultiPort, CibleMultiPort, ResultatScanMultiPort
-from agent_ia.agent import analyser_resultats
+from agent_ia.agent import analyser_resultats, vulns_scorees_locales
+from agent_ia.classification import est_informatif
 import json
 
 historique_bp = Blueprint('historique', __name__)
@@ -24,43 +25,46 @@ def historique():
         if resultat and resultat.donneesSSL:
             try:
                 donnees = json.loads(resultat.donneesSSL)
-                protocoles = donnees.get('protocoles', {})
-                if protocoles.get('ssl2'): nb_vulns += 1
-                if protocoles.get('ssl3'): nb_vulns += 1
-                if protocoles.get('tls10'): nb_vulns += 1
-                if protocoles.get('tls11'): nb_vulns += 1
-                if donnees.get('heartbleed'): nb_vulns += 1
-                if donnees.get('robot'): nb_vulns += 1
-            except: pass
+                # Compte TOUTES les vraies vulns (protocoles + ciphers + certificat),
+                # informationnels exclus — cohérent avec le détail et le multi-port.
+                # vulns_scorees_locales = scoring RF local, SANS appel réseau NVD/FIRST.
+                nb_vulns = sum(1 for f in vulns_scorees_locales(donnees) if not est_informatif(f))
+            except Exception: pass
 
         scan.cible_url = cible.url
         scan.nb_vulns = nb_vulns
         scans_data.append(scan)
 
-    # Scans multi-port (modèle séparé). Résumé : nb de ports analysés + total findings.
+    # Scans multi-port : on classe les ports en 3 catégories (TLS-OK / échec-TLS / non-TLS).
+    # nb_findings ne compte que les VRAIES vulns (informationnels exclus).
     scans_mp = []
     for s in ScanMultiPort.query.order_by(ScanMultiPort.started_at.desc()).all():
         cible_mp = CibleMultiPort.query.get(s.cible_id)
         resultats = ResultatScanMultiPort.query.filter_by(scan_id=s.id).all()
-        # On ne compte que les ports TLS réels (on ignore les ports fermés/non-TLS).
-        nb_ports_tls = 0
-        nb_findings = 0
+        nb_tls = nb_ferme = nb_nontls = nb_findings = 0
         for r in resultats:
             try:
                 details = json.loads(r.details_bruts) if r.details_bruts else {}
             except Exception:
                 details = {}
-            if details.get('statut') == 'ERREUR':
-                continue
-            nb_ports_tls += 1
-            nb_findings += len(details.get('findings', []))
+            statut = details.get('statut') or 'SUCCES'   # vieux scans sans statut -> TLS-OK
+            ouvert = details.get('ouvert', True)         # vieux scans -> supposés ouverts
+            if statut == 'SUCCES':
+                nb_tls += 1
+                nb_findings += sum(1 for f in details.get('findings', []) if not est_informatif(f))
+            elif ouvert:
+                nb_nontls += 1          # ouvert mais sans TLS (non-TLS ou handshake échoué)
+            else:
+                nb_ferme += 1           # fermé / injoignable
         scans_mp.append({
             'id': s.id,
             'cible': cible_mp.nom if cible_mp else 'Inconnu',
             'date': s.started_at,
             'statut': s.statut,
             'score': s.score_risque_global,
-            'nb_ports': nb_ports_tls,
+            'nb_ports': nb_tls,
+            'nb_ports_nontls': nb_nontls,
+            'nb_ports_fermes': nb_ferme,
             'nb_findings': nb_findings,
         })
 
@@ -105,14 +109,13 @@ def detail_multiport(scan_id):
     resultats = ResultatScanMultiPort.query.filter_by(scan_id=scan_id)\
         .order_by(ResultatScanMultiPort.port).all()
 
+    # On renvoie TOUS les ports (le template les regroupe en TLS-OK / échec-TLS / non-TLS).
     ports = []
     for r in resultats:
         try:
             details = json.loads(r.details_bruts) if r.details_bruts else {}
         except Exception:
             details = {}
-        if details.get('statut') == 'ERREUR':
-            continue   # port fermé / non-TLS : masqué (comme dans la vue de scan)
         ports.append({
             'port': r.port,
             'protocole': r.protocole,
@@ -120,9 +123,10 @@ def detail_multiport(scan_id):
             'tls': r.tls_preferé,
             'cn': r.certificat_cn,
             'expire': r.certificat_expire,
-            'findings': [f.get('nom') for f in details.get('findings', [])],
+            'findings': details.get('findings', []),       # dicts complets (nom/cve/severite…)
             'score': r.score_risque_port,
-            'statut': details.get('statut'),
+            'statut': details.get('statut') or 'SUCCES',
+            'ouvert': details.get('ouvert', True),          # vieux scans -> supposés ouverts
         })
 
     return render_template('multiport_detail.html',

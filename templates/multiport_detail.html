@@ -85,24 +85,22 @@
     <div class="obs-box"><strong>🤖 Observation IA :</strong><br>{{ scan.observation_ia }}</div>
     {% endif %}
 
+    {% set tls_ok  = ports|selectattr('statut','equalto','SUCCES')|list %}
+    {# Ports ouverts sans TLS : non-TLS (IGNORE) OU TLS échoué mais port ouvert (ERREUR + ouvert). #}
+    {% set non_tls = ports|rejectattr('statut','equalto','SUCCES')|selectattr('ouvert')|list %}
+    {% set echec   = ports|rejectattr('statut','equalto','SUCCES')|rejectattr('ouvert')|list %}
+
     <div class="table-section">
-        <h2>Détail par port TLS ({{ ports|length }})</h2>
-        {% if ports %}
+        <h2>Ports TLS analysés ({{ tls_ok|length }})</h2>
+        {% if tls_ok %}
         <table class="ports">
             <thead>
-                <tr>
-                    <th>Port</th>
-                    <th>Protocole</th>
-                    <th>TLS</th>
-                    <th>Certificat CN</th>
-                    <th>Validité</th>
-                    <th>Vulnérabilités</th>
-                    <th>Score</th>
-                    <th>Statut</th>
-                </tr>
+                <tr><th>Port</th><th>Protocole</th><th>TLS</th><th>Certificat CN</th>
+                    <th>Validité</th><th>Vulnérabilités</th><th>Score</th><th>Statut</th></tr>
             </thead>
             <tbody>
-                {% for p in ports %}
+                {% for p in tls_ok %}
+                {% set reels = p.findings|rejectattr('severite','equalto','INFORMATIF')|list %}
                 <tr>
                     <td><strong>{{ p.port }}</strong></td>
                     <td>{{ p.protocole or '-' }}{% if p.starttls %} <small style="color:#58a6ff">(STARTTLS)</small>{% endif %}</td>
@@ -113,14 +111,11 @@
                         {% else %}-{% endif %}
                     </td>
                     <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;" title="{{ p.cn or '' }}">{{ p.cn or '-' }}</td>
+                    <td>{% if p.expire %}<span class="cert-ko">❌ Expiré</span>{% else %}<span class="cert-ok">✅ Valide</span>{% endif %}</td>
                     <td>
-                        {% if p.statut == 'ERREUR' %}—
-                        {% elif p.expire %}<span class="cert-ko">❌ Expiré</span>
-                        {% else %}<span class="cert-ok">✅ Valide</span>{% endif %}
-                    </td>
-                    <td>
-                        {% if p.statut == 'ERREUR' %}—
-                        {% elif p.findings %}{% for f in p.findings %}<span class="vuln-badge">{{ f }}</span>{% endfor %}
+                        {% if p.findings %}{% for f in p.findings %}
+                            {% set col = '#f85149' if f.severite == 'CRITICAL' else '#fb6a3c' if f.severite == 'HIGH' else '#f0883e' if f.severite == 'MEDIUM' else '#58a6ff' if f.severite == 'INFORMATIF' else '#e3b341' %}
+                            <span class="vuln-badge" style="background:{{ col }}22;color:{{ col }};border:1px solid {{ col }}55;">{{ f.nom }}{% if f.severite == 'INFORMATIF' %} (info){% endif %}</span>{% endfor %}
                         {% else %}<span class="vuln-none">✓ Aucune</span>{% endif %}
                     </td>
                     <td>
@@ -128,10 +123,7 @@
                         {% set scls = 'low' if s < 3 else ('mid' if s < 6 else 'high') %}
                         <span class="score-cell {{ scls }}">{{ s }}</span>
                     </td>
-                    <td>
-                        {% if p.statut == 'ERREUR' %}<span class="ferme">Fermé / Erreur</span>
-                        {% else %}<span class="ok">✓ OK</span>{% endif %}
-                    </td>
+                    <td>{% if reels %}<span class="ferme" style="color:#f85149;">⚠️ Vulnérable</span>{% else %}<span class="ok">✓ OK</span>{% endif %}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -140,6 +132,38 @@
         <div style="text-align:center; padding:40px; color:#8b949e;">Aucun port TLS détecté pour ce scan.</div>
         {% endif %}
     </div>
+
+    {% if non_tls %}
+    <div class="table-section">
+        <h2>Ports ouverts sans TLS ({{ non_tls|length }})</h2>
+        <table class="ports">
+            <thead><tr><th>Port</th><th>Protocole</th><th>Statut</th></tr></thead>
+            <tbody>
+                {% for p in non_tls %}
+                <tr><td><strong>{{ p.port }}</strong></td>
+                    <td>{{ 'non-TLS' if p.statut == 'IGNORE' else (p.protocole or '—') }}</td>
+                    <td>{% if p.statut == 'IGNORE' %}<span style="color:#58a6ff;">Ouvert (non-TLS)</span>
+                        {% else %}<span style="color:#d29922;">Ouvert — TLS indisponible</span>{% endif %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if echec %}
+    <div class="table-section">
+        <h2>Ports fermés / injoignables ({{ echec|length }})</h2>
+        <table class="ports">
+            <thead><tr><th>Port</th><th>Protocole</th><th>Statut</th></tr></thead>
+            <tbody>
+                {% for p in echec %}
+                <tr><td><strong>{{ p.port }}</strong></td><td>{{ p.protocole or '-' }}</td>
+                    <td><span class="ferme">Fermé / injoignable</span></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
 </div>
 
 </body>

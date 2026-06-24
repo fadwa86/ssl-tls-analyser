@@ -4,6 +4,7 @@ from models.models import Cible, Scan, ResultatScan
 from models.models import ComparaisonScan, ComparaisonVulnerabilite
 from routes.sse_util import flux_evenements, sse_event
 from agent_ia.agent import vulns_scorees_locales
+from agent_ia.classification import est_informatif
 from datetime import datetime
 import threading
 import json
@@ -61,7 +62,20 @@ def comparaison_scans_page():
             'statut': scan.statut
         })
 
-    return render_template('comparison_scans.html', admin=admin, scans=scans_pour_template)
+    # Scans multi-port terminés (onglet « comparaison multi-port »).
+    from agent_ia.scanner_multiport import nettoyer_cible
+    from models.models import ScanMultiPort, CibleMultiPort
+    scans_mp = []
+    for s in ScanMultiPort.query.filter_by(statut='TERMINE').order_by(ScanMultiPort.started_at.desc()).all():
+        c = CibleMultiPort.query.get(s.cible_id)
+        nom = c.nom if c and c.nom else 'Inconnu'
+        scans_mp.append({
+            'id': s.id, 'cible': nom, 'cible_normale': nettoyer_cible(nom),
+            'date': s.started_at.strftime('%d/%m/%Y %H:%M') if s.started_at else 'N/A',
+        })
+
+    return render_template('comparison_scans.html', admin=admin,
+                           scans=scans_pour_template, scans_mp=scans_mp)
 
 
 @comparison_bp.route('/comparaison_scans', methods=['POST'])
@@ -211,6 +225,8 @@ def _serialiser_comparaison(comparaison_id):
     cible = Cible.query.get(comparaison.cibleId)
     cible_nom = cible.url if cible and cible.url else (cible.adresseIp if cible else 'Inconnu')
     vulnerabilites = ComparaisonVulnerabilite.query.filter_by(comparaison_id=comparaison_id).all()
+    def _cnt(t):
+        return sum(1 for v in vulnerabilites if v.type == t)
     return {
         'comparaison_id': comparaison.id,
         'cible': cible_nom,
@@ -220,9 +236,11 @@ def _serialiser_comparaison(comparaison_id):
         'score_ia_nouveau': comparaison.score_ia_nouveau or 0,
         'evolution_ia': comparaison.evolution_ia or 0,
         'observation_ia': comparaison.observation_ia,
-        'nb_corrigees': comparaison.nb_corrigees or 0,
-        'nb_nouvelles': comparaison.nb_nouvelles or 0,
-        'nb_inchangees': comparaison.nb_inchangees or 0,
+        'nb_corrigees': _cnt('FIXED'),
+        'nb_nouvelles': _cnt('NEW'),
+        'nb_inchangees': _cnt('UNCHANGED'),
+        'nb_aggravees': _cnt('AGGRAVE'),
+        'nb_ameliorees': _cnt('AMELIORE'),
         'vulnerabilites': [{
             'nom': v.nom,
             'cve': v.cve,
@@ -269,13 +287,16 @@ def calculer_diff_scans(scan_ancien_id, scan_nouveau_id, emit=None):
     nb_corrigees = 0
     nb_nouvelles = 0
     nb_inchangees = 0
+    nb_aggravees = 0
+    nb_ameliorees = 0
 
     # Score IA global d'un scan = moyenne des criticités de ses vulnérabilités
     # (même logique de moyenne que le scan multi-port ; 0 si aucune vulnérabilité).
     # Calculé depuis les vulns extraites -> fonctionne pour TOUS les scans existants,
     # sans colonne BDD ni migration. (Le modèle Scan ne stocke aucun score global.)
     def _score_global(vulns):
-        scores = [float(v.get('score_ia', 0) or 0) for v in vulns]
+        # Les findings informationnels (sans CVE) ne pèsent pas sur le score global.
+        scores = [float(v.get('score_ia', 0) or 0) for v in vulns if not est_informatif(v)]
         return round(sum(scores) / len(scores), 2) if scores else 0.0
 
     score_ia_ancien = _score_global(vulns_ancien)
@@ -317,17 +338,32 @@ def calculer_diff_scans(scan_ancien_id, scan_nouveau_id, emit=None):
             score_old = float(vuln_old.get('score_ia', 0) or 0)
             score_new = float(vuln_new.get('score_ia', 0) or 0)
 
+            # 5 états : informationnel toujours UNCHANGED ; sinon comparaison stricte des scores.
+            if est_informatif(vuln_old):
+                etat = 'UNCHANGED'
+            elif score_new > score_old:
+                etat = 'AGGRAVE'
+            elif score_new < score_old:
+                etat = 'AMELIORE'
+            else:
+                etat = 'UNCHANGED'
+
             ligne = {
                 'nom': nom,
                 'cve': vuln_old.get('cve'),
                 'cvss': vuln_old.get('cvss'),
                 'score_ia_ancien': score_old,
                 'score_ia_nouveau': score_new,
-                'type': 'UNCHANGED',
-                'details': f'{nom} inchangé'
+                'type': etat,
+                'details': f'{nom} : {etat.lower()}'
             }
             resultats.append(ligne)
-            nb_inchangees += 1
+            if etat == 'AGGRAVE':
+                nb_aggravees += 1
+            elif etat == 'AMELIORE':
+                nb_ameliorees += 1
+            else:
+                nb_inchangees += 1
             _emit({'type': 'finding', 'item': ligne, 'progression': 85})
 
     _emit({'type': 'phase', 'message': 'Calcul du score IA et de l’observation…', 'progression': 95})
@@ -343,9 +379,9 @@ def calculer_diff_scans(scan_ancien_id, scan_nouveau_id, emit=None):
     observation_ia = (
         f"Le score IA global passe de {float(score_ia_ancien):.2f} à {float(score_ia_nouveau):.2f}. "
         f"Il s'agit d'une {tendance} de {abs(evolution):.2f}. "
-        f"{nb_corrigees} vulnérabilités ont été corrigées, "
-        f"{nb_nouvelles} nouvelles vulnérabilités sont apparues, "
-        f"et {nb_inchangees} sont restées inchangées."
+        f"{nb_corrigees} corrigée(s), {nb_nouvelles} nouvelle(s), "
+        f"{nb_aggravees} aggravée(s), {nb_ameliorees} améliorée(s), "
+        f"{nb_inchangees} inchangée(s)."
     )
 
     return {
@@ -356,6 +392,8 @@ def calculer_diff_scans(scan_ancien_id, scan_nouveau_id, emit=None):
         'nb_corrigees': nb_corrigees,
         'nb_nouvelles': nb_nouvelles,
         'nb_inchangees': nb_inchangees,
+        'nb_aggravees': nb_aggravees,
+        'nb_ameliorees': nb_ameliorees,
         'vulnerabilites': resultats
     }
 
@@ -411,3 +449,182 @@ def extraire_vulnerabilites_depuis_resultats(resultats_scan):
         except Exception:
             continue
     return vulns
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# Comparaison MULTI-PORT (2ᵉ type) — diff par (port, nom), 5 états, scores persistés.
+# ════════════════════════════════════════════════════════════════════════════
+from models.models import ScanMultiPort, CibleMultiPort, ResultatScanMultiPort
+from models.models import ComparaisonScanMultiPort, ComparaisonFindingMultiPort
+
+comparaisons_mp_en_cours = {}
+
+
+def _cible_mp_canonical(scan_mp):
+    from agent_ia.scanner_multiport import nettoyer_cible
+    c = CibleMultiPort.query.get(scan_mp.cible_id)
+    return nettoyer_cible(c.nom) if c and c.nom else ''
+
+
+def extraire_vulns_multiport(scan_id):
+    """{(port, nom): finding} depuis details_bruts (findings DÉJÀ scorés, clé criticite)."""
+    out = {}
+    for r in ResultatScanMultiPort.query.filter_by(scan_id=scan_id).all():
+        try:
+            details = json.loads(r.details_bruts) if r.details_bruts else {}
+        except Exception:
+            details = {}
+        for f in details.get('findings', []) or []:
+            out[(r.port, f.get('nom'))] = {
+                'port': r.port, 'nom': f.get('nom'), 'cve': f.get('cve'),
+                'criticite': f.get('criticite', 0), 'severite': f.get('severite'),
+            }
+    return out
+
+
+def calculer_diff_multiport(aid, nid, emit=None):
+    def _emit(ev):
+        if emit:
+            emit(ev)
+    _emit({'type': 'phase', 'message': 'Lecture des deux scans multi-port…', 'progression': 20})
+    anc, nouv = extraire_vulns_multiport(aid), extraire_vulns_multiport(nid)
+    cles = set(anc) | set(nouv)                       # union des (port, nom)
+
+    def _score(vulns):
+        vals = [float(v['criticite'] or 0) for v in vulns.values() if not est_informatif(v)]
+        return round(sum(vals) / len(vals), 2) if vals else 0.0
+
+    lignes, cnt = [], {'FIXED': 0, 'NEW': 0, 'UNCHANGED': 0, 'AGGRAVE': 0, 'AMELIORE': 0}
+    for (port, nom) in sorted(cles, key=lambda k: (k[0] or 0, k[1] or '')):
+        a, n = anc.get((port, nom)), nouv.get((port, nom))
+        if a and not n:
+            etat = 'FIXED'
+        elif n and not a:
+            etat = 'NEW'
+        elif est_informatif(a):
+            etat = 'UNCHANGED'                         # informationnel : jamais aggravé/amélioré
+        else:
+            so, sn = float(a['criticite'] or 0), float(n['criticite'] or 0)
+            etat = 'AGGRAVE' if sn > so else 'AMELIORE' if sn < so else 'UNCHANGED'
+        cnt[etat] += 1
+        ref = a or n
+        lignes.append({'port': port, 'nom': nom, 'cve': ref.get('cve'),
+                       'score_ia_ancien': float(a['criticite']) if a else 0.0,
+                       'score_ia_nouveau': float(n['criticite']) if n else 0.0,
+                       'type': etat, 'details': f'port {port} · {nom} · {etat.lower()}'})
+        _emit({'type': 'finding', 'item': lignes[-1], 'progression': 70})
+
+    sa, sn = _score(anc), _score(nouv)
+    evo = round(sn - sa, 2)
+    tend = 'amélioration' if evo < 0 else 'dégradation' if evo > 0 else 'stabilité'
+    obs = (f"Score multi-port : {sa:.2f} → {sn:.2f} ({tend} {abs(evo):.2f}). "
+           f"{cnt['FIXED']} corrigée(s), {cnt['NEW']} nouvelle(s), {cnt['AGGRAVE']} aggravée(s), "
+           f"{cnt['AMELIORE']} améliorée(s), {cnt['UNCHANGED']} inchangée(s).")
+    return {'score_ia_ancien': sa, 'score_ia_nouveau': sn, 'evolution_ia': evo,
+            'observation_ia': obs, 'compteurs': cnt, 'findings': lignes}
+
+
+def _serialiser_comparaison_mp(cid):
+    comp = ComparaisonScanMultiPort.query.get(cid)
+    if not comp:
+        return None
+    cible = CibleMultiPort.query.get(comp.cible_id)
+    rows = ComparaisonFindingMultiPort.query.filter_by(comparaison_id=cid).all()
+    return {
+        'comparaison_id': comp.id,
+        'cible': cible.nom if cible else 'Inconnu',
+        'score_ia_ancien': comp.score_ia_ancien or 0,
+        'score_ia_nouveau': comp.score_ia_nouveau or 0,
+        'evolution_ia': comp.evolution_ia or 0,
+        'observation_ia': comp.observation_ia,
+        'nb_corrigees': comp.nb_corrigees or 0, 'nb_nouvelles': comp.nb_nouvelles or 0,
+        'nb_inchangees': comp.nb_inchangees or 0, 'nb_aggravees': comp.nb_aggravees or 0,
+        'nb_ameliorees': comp.nb_ameliorees or 0,
+        'findings': [{'port': r.port, 'nom': r.nom, 'cve': r.cve,
+                      'score_ia_ancien': r.score_ia_ancien or 0,
+                      'score_ia_nouveau': r.score_ia_nouveau or 0, 'type': r.type} for r in rows]
+    }
+
+
+@comparison_bp.route('/comparaison_multiport', methods=['POST'])
+def lancer_comparaison_multiport():
+    if 'admin_id' not in session:
+        return jsonify({'erreur': 'Non authentifié'}), 401
+    data = request.get_json() or {}
+    aid, nid = data.get('scan_ancien_id'), data.get('scan_nouveau_id')
+    if not aid or not nid:
+        return jsonify({'erreur': 'Les 2 scans sont requis'}), 400
+    if str(aid) == str(nid):
+        return jsonify({'erreur': 'Les scans doivent être différents'}), 400
+    sa, sn = ScanMultiPort.query.get(aid), ScanMultiPort.query.get(nid)
+    if not sa or not sn:
+        return jsonify({'erreur': 'Scan non trouvé'}), 404
+    if sa.statut != 'TERMINE' or sn.statut != 'TERMINE':
+        return jsonify({'erreur': 'Les 2 scans doivent être terminés'}), 400
+    if _cible_mp_canonical(sa) != _cible_mp_canonical(sn):
+        return jsonify({'erreur': 'Les 2 scans doivent être de la même cible'}), 400
+
+    comp = ComparaisonScanMultiPort(scan_ancien_id=sa.id, scan_nouveau_id=sn.id, cible_id=sa.cible_id)
+    db.session.add(comp)
+    db.session.commit()
+    cid = comp.id
+    etat = {'statut': 'EN_COURS', 'progression': 0, 'evenements': []}
+    comparaisons_mp_en_cours[cid] = etat
+
+    def emettre(ev):
+        etat['evenements'].append(ev)
+        if 'progression' in ev:
+            etat['progression'] = ev['progression']
+
+    app = current_app._get_current_object()
+    a2, n2 = sa.id, sn.id
+
+    def worker():
+        with app.app_context():
+            try:
+                res = calculer_diff_multiport(a2, n2, emit=emettre)
+                c = ComparaisonScanMultiPort.query.get(cid)
+                c.score_ia_ancien = res['score_ia_ancien']
+                c.score_ia_nouveau = res['score_ia_nouveau']
+                c.evolution_ia = res['evolution_ia']
+                c.observation_ia = res['observation_ia']
+                cc = res['compteurs']
+                c.nb_corrigees, c.nb_nouvelles, c.nb_inchangees = cc['FIXED'], cc['NEW'], cc['UNCHANGED']
+                c.nb_aggravees, c.nb_ameliorees = cc['AGGRAVE'], cc['AMELIORE']
+                for f in res['findings']:
+                    db.session.add(ComparaisonFindingMultiPort(
+                        comparaison_id=cid, port=f['port'], nom=f['nom'], cve=f.get('cve'),
+                        score_ia_ancien=f['score_ia_ancien'], score_ia_nouveau=f['score_ia_nouveau'],
+                        type=f['type'], details=f['details']))
+                db.session.commit()
+                etat['statut'] = 'TERMINE'
+                etat['progression'] = 100
+                emettre({'type': 'done', 'resultat': _serialiser_comparaison_mp(cid)})
+            except Exception as e:
+                db.session.rollback()
+                etat['statut'] = 'ERREUR'
+                etat['erreur'] = str(e)
+                etat['evenements'].append({'type': 'error', 'message': str(e)})
+
+    threading.Thread(target=worker, daemon=True).start()
+    return jsonify({'succes': True, 'comparaison_id': cid, 'statut': 'EN_COURS'})
+
+
+@comparison_bp.route('/comparaison_multiport_stream/<int:cid>')
+def comparaison_mp_stream(cid):
+    if 'admin_id' not in session:
+        return jsonify({'erreur': 'Non authentifié'}), 401
+    if cid not in comparaisons_mp_en_cours:
+        comp = ComparaisonScanMultiPort.query.get(cid)
+        ev = ({'type': 'done', 'resultat': _serialiser_comparaison_mp(cid)}
+              if comp else {'type': 'error', 'message': 'Comparaison introuvable'})
+        return Response(sse_event(ev), mimetype='text/event-stream', headers={'Cache-Control': 'no-cache'})
+    return flux_evenements(lambda: comparaisons_mp_en_cours.get(cid))
+
+
+@comparison_bp.route('/comparaison_multiport_resultats/<int:cid>')
+def comparaison_mp_resultats(cid):
+    data = _serialiser_comparaison_mp(cid)
+    if data is None:
+        return jsonify({'erreur': 'Comparaison non trouvée'}), 404
+    return jsonify(data)

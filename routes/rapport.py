@@ -22,50 +22,9 @@ from datetime import datetime
 
 rapport_bp = Blueprint('rapport', __name__)
 
-RECOMMANDATIONS = {
-    'TLS 1.0 activé': {
-        'description': 'TLS 1.0 est un protocole obsolète vulnérable aux attaques BEAST et POODLE.',
-        'nginx':   {'etapeCorrection': 'Modifier /etc/nginx/nginx.conf', 'solution': 'ssl_protocols TLSv1.2 TLSv1.3;'},
-        'apache':  {'etapeCorrection': 'Modifier /etc/apache2/ssl.conf', 'solution': 'SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1'},
-        'iis':     {'etapeCorrection': 'Utiliser IIS Crypto Tool', 'solution': 'Désactiver TLS 1.0 via le registre Windows'},
-        'inconnu': {'etapeCorrection': 'Accéder à la configuration SSL/TLS', 'solution': 'Désactiver TLS 1.0 et activer TLS 1.2 et TLS 1.3'}
-    },
-    'TLS 1.1 activé': {
-        'description': 'TLS 1.1 est déprécié depuis mars 2021 (RFC 8996).',
-        'nginx':   {'etapeCorrection': 'Modifier ssl_protocols dans nginx.conf', 'solution': 'ssl_protocols TLSv1.2 TLSv1.3;'},
-        'apache':  {'etapeCorrection': 'Modifier SSLProtocol dans ssl.conf', 'solution': 'SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1'},
-        'iis':     {'etapeCorrection': 'Utiliser IIS Crypto Tool', 'solution': 'Désactiver TLS 1.1 via le registre Windows'},
-        'inconnu': {'etapeCorrection': 'Accéder à la configuration SSL/TLS', 'solution': 'Désactiver TLS 1.1 et activer TLS 1.2 et TLS 1.3'}
-    },
-    'POODLE - SSL 3.0 activé': {
-        'description': 'SSL 3.0 est vulnérable à l attaque POODLE (CVE-2014-3566).',
-        'nginx':   {'etapeCorrection': 'Modifier ssl_protocols dans nginx.conf', 'solution': 'ssl_protocols TLSv1.2 TLSv1.3;'},
-        'apache':  {'etapeCorrection': 'Modifier SSLProtocol dans ssl.conf', 'solution': 'SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1'},
-        'iis':     {'etapeCorrection': 'Désactiver SSL 3.0 via le registre', 'solution': 'SSL 3.0 Enabled = 0'},
-        'inconnu': {'etapeCorrection': 'Désactiver SSL 3.0', 'solution': 'Activer uniquement TLS 1.2 et TLS 1.3'}
-    },
-    'SSL 2.0 activé': {
-        'description': 'SSL 2.0 présente de graves failles cryptographiques.',
-        'nginx':   {'etapeCorrection': 'Modifier ssl_protocols dans nginx.conf', 'solution': 'ssl_protocols TLSv1.2 TLSv1.3;'},
-        'apache':  {'etapeCorrection': 'Modifier SSLProtocol dans ssl.conf', 'solution': 'SSLProtocol all -SSLv2 -SSLv3 -TLSv1 -TLSv1.1'},
-        'iis':     {'etapeCorrection': 'Désactiver SSL 2.0 via le registre', 'solution': 'SSL 2.0 Enabled = 0'},
-        'inconnu': {'etapeCorrection': 'Désactiver SSL 2.0', 'solution': 'Mettre à jour OpenSSL et activer TLS 1.2+'}
-    },
-    'HEARTBLEED': {
-        'description': 'Heartbleed (CVE-2014-0160) permet la lecture de la memoire du serveur.',
-        'nginx':   {'etapeCorrection': 'Mettre à jour OpenSSL', 'solution': 'apt-get upgrade openssl && service nginx restart'},
-        'apache':  {'etapeCorrection': 'Mettre à jour OpenSSL', 'solution': 'apt-get upgrade openssl && service apache2 restart'},
-        'iis':     {'etapeCorrection': 'Appliquer le patch MS14-066', 'solution': 'Installer KB2992611 via Windows Update'},
-        'inconnu': {'etapeCorrection': 'Mettre à jour OpenSSL', 'solution': 'Mettre à jour OpenSSL vers 1.0.1g+'}
-    },
-    'ROBOT Attack': {
-        'description': 'ROBOT (CVE-2017-13099) permet le dechiffrement RSA.',
-        'nginx':   {'etapeCorrection': 'Modifier ssl_ciphers dans nginx.conf', 'solution': 'ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:!RSA;'},
-        'apache':  {'etapeCorrection': 'Modifier SSLCipherSuite dans ssl.conf', 'solution': 'SSLCipherSuite ECDHE-ECDSA-AES128-GCM-SHA256:!RSA'},
-        'iis':     {'etapeCorrection': 'Désactiver RSA via IIS Crypto', 'solution': 'Désactiver les cipher suites RSA'},
-        'inconnu': {'etapeCorrection': 'Désactiver les cipher suites RSA', 'solution': 'Utiliser uniquement ECDHE'}
-    }
-}
+# Source UNIQUE des remédiations (même dict que la page Priorisation : 6 protocoles +
+# variantes mail + 17 findings cipher/DH/certificat). Évite la divergence single/multi-port.
+from routes.priorisation import RECOMMANDATIONS
 
 BLEU       = HexColor('#1f6feb')
 ROUGE      = HexColor('#f85149')
@@ -85,6 +44,8 @@ def determiner_urgence(severite):
     MEDIUM   → Corriger rapidement
     LOW      → Risque faible
     """
+    if severite == 'INFORMATIF':
+        return 'Informatif', GRIS_TEXTE
     if severite == 'CRITICAL':
         return 'Corriger immediatement', ROUGE
     elif severite == 'HIGH':
@@ -97,6 +58,8 @@ def determiner_urgence(severite):
 
 def severite_vers_priorite(severite):
     """Cohérent avec agent.py"""
+    if severite == 'INFORMATIF':
+        return 'INFORMATIF'
     if severite in ('CRITICAL', 'HIGH'):
         return 'HAUTE'
     elif severite == 'MEDIUM':
@@ -105,7 +68,7 @@ def severite_vers_priorite(severite):
         return 'BASSE'
 
 
-def generer_pdf(scan, cible, vulnerabilites, type_serveur, version_serveur, admin):
+def generer_pdf(scan, cible, vulnerabilites, type_serveur, version_serveur, admin, donnees=None):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer, pagesize=A4,
@@ -167,7 +130,16 @@ def generer_pdf(scan, cible, vulnerabilites, type_serveur, version_serveur, admi
     nb_critical = len([v for v in vulnerabilites if v['severite'] == 'CRITICAL'])
     nb_high     = len([v for v in vulnerabilites if v['severite'] == 'HIGH'])
     nb_medium   = len([v for v in vulnerabilites if v['severite'] == 'MEDIUM'])
-    nb_total    = len(vulnerabilites)
+    nb_total    = len([v for v in vulnerabilites if v.get('severite') != 'INFORMATIF'])  # réels seulement
+
+    # Grade TLS (réels) + conformité PCI-DSS v4.0 / NIST SP 800-52 (même logique que multi-port).
+    from agent_ia.conformite import calculer_grade_tls, evaluer_conformite
+    _reels = [v for v in vulnerabilites if v.get('severite') != 'INFORMATIF']
+    grade_tls = calculer_grade_tls(_reels)
+    try:
+        conf = evaluer_conformite([donnees]) if donnees else {'pci_dss': False, 'nist': False}
+    except Exception:
+        conf = {'pci_dss': False, 'nist': False}
 
     if nb_critical > 0:
         niveau_risque, couleur_risque = "CRITIQUE", ROUGE
@@ -195,6 +167,9 @@ def generer_pdf(scan, cible, vulnerabilites, type_serveur, version_serveur, admi
         ['Vulnerabilites elevees',   str(nb_high)],
         ['Vulnerabilites moyennes',  str(nb_medium)],
         ['Niveau de risque',         niveau_risque],
+        ['Grade TLS (A-F)',          grade_tls],
+        ['Conformite PCI-DSS v4.0',  'CONFORME' if conf.get('pci_dss') else 'NON CONFORME'],
+        ['Conformite NIST SP 800-52','CONFORME' if conf.get('nist') else 'NON CONFORME'],
     ]
     table_resume = Table(data_resume, colWidths=[8*cm, 9*cm])
     table_resume.setStyle(TableStyle([
@@ -414,6 +389,7 @@ def generer_rapport(scan_id):
     vulnerabilites  = []
     type_serveur    = 'inconnu'
     version_serveur = 'Non detecte'
+    donnees         = {}
 
     if resultat and resultat.donneesSSL:
         try:
@@ -425,7 +401,7 @@ def generer_rapport(scan_id):
         except Exception as e:
             print("Erreur:", e)
 
-    buffer   = generer_pdf(scan, cible, vulnerabilites, type_serveur, version_serveur, admin)
+    buffer   = generer_pdf(scan, cible, vulnerabilites, type_serveur, version_serveur, admin, donnees)
     safe_url = re.sub(r'[<>:"/\\|?*]', '_', cible.url or 'cible')
     filename = f"rapport_scan_{scan_id}_{safe_url}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
 
@@ -482,10 +458,15 @@ def generer_rapport_multiport(scan_id):
         details = json.loads(r.details_bruts) if r.details_bruts else {}
         if details.get('serveur'):
             serveur = details['serveur']
-        ports_details.append(details)
+        # Le rapport ne contient QUE les ports TLS ouverts (on ignore non-TLS/échec).
+        if (details.get('statut') or 'SUCCES') != 'SUCCES':
+            continue
+        ports_details.append(details)            # conformité : tous les ports TLS
         logiciel = details.get('logiciel', '')
 
         findings = details.get('findings', [])   # .get → anciens scans sans 'findings'
+        if not findings:
+            continue                             # « ports avec vuln » : pas les ports propres
         for f in findings:
             _attacher_remediation(f, r.protocole, logiciel, serveur.get('type', 'inconnu'))
         all_findings.extend(findings)
@@ -532,7 +513,9 @@ def generer_rapport_multiport(scan_id):
         date_generation=datetime.now().strftime('%d/%m/%Y %H:%M'),
         admin=admin, grade=grade, score_ia=scan.score_risque_global, conformite=conformite,
         observation_ia=scan.observation_ia, serveur=serveur,
-        nb_critical=nb('CRITICAL'), nb_high=nb('HIGH'), nb_medium=nb('MEDIUM'), nb_total=len(all_findings),
+        nb_critical=nb('CRITICAL'), nb_high=nb('HIGH'), nb_medium=nb('MEDIUM'),
+        nb_total=sum(1 for f in all_findings if f.get('severite') != 'INFORMATIF'),
+        nb_informatif=nb('INFORMATIF'),
         ports=ports_vue, historique=historique, sha256=sha256, reco_principale=reco_principale)
 
     pdf      = HTML(string=html).write_pdf()

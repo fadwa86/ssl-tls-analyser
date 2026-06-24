@@ -375,10 +375,19 @@
             <div class="card-header-custom">
                 <div class="icon-wrap"><i class="fas fa-chart-bar"></i></div>
                 <h6>Résultats du Scan</h6>
-                <div id="scoreGlobal" class="ms-auto"></div>
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    <span id="tlsGradeBox"></span>
+                    <span id="scoreGlobal"></span>
+                </div>
             </div>
             <div class="card-body-custom">
                 <div id="obsBox" style="display:none;" class="obs-box"></div>
+
+                <!-- Cartes de comptage (incl. Informatif) -->
+                <div id="mpCards" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px;"></div>
+
+                <!-- Tableau par port -->
+                <h6 style="margin:8px 0;color:#8b949e;">Détail par port</h6>
                 <div style="overflow-x:auto;">
                     <table class="result-table">
                         <thead>
@@ -396,6 +405,22 @@
                         <tbody id="resultBody"></tbody>
                     </table>
                 </div>
+
+                <!-- Vulnérabilités agrégées (même vue que le scan simple) -->
+                <h6 style="margin:18px 0 8px;color:#8b949e;">Vulnérabilités détectées (tous ports)</h6>
+                <div style="overflow-x:auto;">
+                    <table class="result-table">
+                        <thead>
+                            <tr><th>#</th><th>Nom</th><th>CVE / CWE</th><th>Type</th>
+                                <th>Sévérité</th><th>Score IA</th><th>Ports</th></tr>
+                        </thead>
+                        <tbody id="aggBody"></tbody>
+                    </table>
+                </div>
+
+                <!-- Priorisation IA classée -->
+                <h6 style="margin:18px 0 8px;color:#8b949e;">✦ Priorisation IA</h6>
+                <div id="mpPrio"></div>
             </div>
         </div>
 
@@ -467,8 +492,8 @@
             return;
         }
 
-        // Mémorise le scan pour pouvoir le reprendre après un rechargement.
-        localStorage.setItem(SCAN_KEY, JSON.stringify({scanId: data.scan_id}));
+        // Mémorise le scan + la cible pour reprise/pré-remplissage après rechargement.
+        localStorage.setItem(SCAN_KEY, JSON.stringify({scanId: data.scan_id, cible}));
         ouvrirFlux(data.scan_id, false);
     }
 
@@ -511,10 +536,21 @@
         document.getElementById('progressPct').textContent = p + '%';
     }
 
+    // ── Helpers d'affichage ────────────────────────────────────────────────────
+    // Code couleur : CRITICAL rouge · HIGH rouge-orangé · MEDIUM orange · LOW jaune · INFORMATIF bleu.
+    const SEV_COLOR = {CRITICAL:'#f85149', HIGH:'#fb6a3c', MEDIUM:'#f0883e', LOW:'#e3b341', INFORMATIF:'#58a6ff'};
+    function sevColor(s){ return SEV_COLOR[s] || '#8b949e'; }
+    function badgeVuln(f){
+        const c = sevColor(f.severite);
+        const info = f.severite === 'INFORMATIF' ? ' <small>(info)</small>' : '';
+        return `<span class="vuln-badge" style="background:${c}22;color:${c};border:1px solid ${c}55;">${f.nom}${info}</span>`;
+    }
+    function gradeColor(g){ return g === 'A' ? '#3fb950' : g === 'B' ? '#58a6ff' : g === 'C' ? '#d29922' : '#f85149'; }
+
     // Ligne de port partielle (aperçu live ; remplacée par le tableau complet au 'done').
     function ajouterLignePort(item) {
-        // Port fermé / non-TLS : non pertinent dans les résultats du scan, on l'ignore.
-        if (item.statut === 'ERREUR') return;
+        // Port fermé/erreur ou non-TLS : non pertinent dans les résultats du scan.
+        if (item.statut === 'ERREUR' || item.statut === 'IGNORE') return;
         document.getElementById('resultSection').style.display = 'block';
         let tlsHtml = '-';
         if (item.tls) {
@@ -523,13 +559,11 @@
         }
         const s = item.score || 0;
         const sCls = s < 3 ? 'low' : s < 6 ? 'mid' : 'high';
-        const statutHtml = item.statut === 'ERREUR'
-            ? '<span class="erreur-cell">Fermé / Erreur</span>'
-            : '<span style="color:#3fb950;font-weight:600;">✓ OK</span>';
         const svc = item.logiciel
             ? `${item.protocole || '-'} <small style="color:#58a6ff">(${item.logiciel})</small>`
             : (item.protocole || '-');
         const tr = document.createElement('tr');
+        // Aperçu live : findings/statut pas encore connus → cellules neutres, corrigées au 'done'.
         tr.innerHTML = `
             <td><strong>${item.port}</strong></td>
             <td>${svc}</td>
@@ -538,18 +572,32 @@
             <td>—</td>
             <td>—</td>
             <td><span class="score-cell ${sCls}">${s}</span></td>
-            <td>${statutHtml}</td>`;
+            <td><span style="color:#8b949e;">…</span></td>`;
         document.getElementById('resultBody').appendChild(tr);
     }
 
     function afficherResultats(data) {
         if (!data || data.erreur) return;   // rendu direct depuis le payload SSE 'done'
+        if (data.cible) document.getElementById('cible').value = data.cible;   // hôte affiché/rempli
 
-        // Score global
+        // Score global + Grade TLS (réels uniquement)
         const score = data.score_global || 0;
         let scoreCls = score < 3 ? 'score-low' : score < 6 ? 'score-mid' : 'score-high';
         document.getElementById('scoreGlobal').innerHTML =
-            `<span class="score-badge ${scoreCls}">Score global : ${score}/10</span>`;
+            `<span class="score-badge ${scoreCls}">Score : ${score}/10</span>`;
+        const g = data.tls_grade || 'A';
+        document.getElementById('tlsGradeBox').innerHTML =
+            `<span class="score-badge" style="background:${gradeColor(g)}22;color:${gradeColor(g)};border:1px solid ${gradeColor(g)}55;">Grade TLS : ${g}</span>`;
+
+        // Cartes de comptage (Critiques / Élevées / Moyennes / Informatif)
+        const c = data.compteurs || {critique:0, elevee:0, moyenne:0, informatif:0};
+        const carte = (lab, val, col) =>
+            `<div style="flex:1;min-width:120px;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px 14px;">
+                <div style="font-size:11px;color:#8b949e;text-transform:uppercase;">${lab}</div>
+                <div style="font-size:22px;font-weight:700;color:${col};">${val}</div></div>`;
+        document.getElementById('mpCards').innerHTML =
+            carte('Critiques', c.critique, '#f85149') + carte('Élevées', c.elevee, '#fb6a3c') +
+            carte('Moyennes', c.moyenne, '#f0883e') + carte('Informatif', c.informatif, '#58a6ff');
 
         // Observation IA
         if (data.observation_ia) {
@@ -558,41 +606,26 @@
                 '<strong><i class="fas fa-robot me-2"></i>Observation IA :</strong><br>' + data.observation_ia;
         }
 
-        // Tableau — on masque les ports fermés / non-TLS (statut ERREUR).
+        // Tableau par port — masque ports fermés/erreur (ERREUR) ET non-TLS (IGNORE).
         let html = '';
-        (data.resultats || []).filter(r => r.statut !== 'ERREUR').forEach(r => {
-            // TLS badge
+        (data.resultats || []).filter(r => r.statut !== 'ERREUR' && r.statut !== 'IGNORE').forEach(r => {
             let tlsHtml = '-';
             if (r.tls_preferé) {
                 const cls = r.tls_preferé === 'TLS1.3' ? 'tls-13'
                           : r.tls_preferé === 'TLS1.2' ? 'tls-12' : 'tls-old';
                 tlsHtml = `<span class="tls-badge ${cls}">${r.tls_preferé}</span>`;
             }
-
-            // Certificat
             const cn = r.certificat_cn || '-';
             const certHtml = r.certificat_expire
                 ? '<span class="cert-ko">❌ Expiré</span>'
                 : '<span class="cert-ok">✅ Valide</span>';
-
-            // Vulnérabilités — toutes les failles détectées (protocoles faibles inclus),
-            // pas seulement Heartbleed/ROBOT/CCS. Source : findings (base du score).
-            const vulns = (r.findings || []).map(nom =>
-                `<span class="vuln-badge vuln-robot">${nom}</span>`);
-            const vulnsHtml = vulns.length
-                ? vulns.join('')
-                : '<span class="vuln-none">✓ Aucune</span>';
-
-            // Score port
+            const vulns = (r.findings || []).map(badgeVuln);     // findings = dicts
+            const vulnsHtml = vulns.length ? vulns.join('') : '<span class="vuln-none">✓ Aucune</span>';
             const s = r.score_risque_port || 0;
             const sCls = s < 3 ? 'low' : s < 6 ? 'mid' : 'high';
-            const scoreHtml = `<span class="score-cell ${sCls}">${s}</span>`;
-
-            // Statut port (erreur ou ok)
-            const statutHtml = r.statut === 'ERREUR'
-                ? `<span class="erreur-cell" title="${r.erreur || ''}">Fermé / Erreur</span>`
+            const statutHtml = r.vulnerable
+                ? '<span style="color:#f85149;font-weight:600;">⚠️ Vulnérable</span>'
                 : '<span style="color:#3fb950;font-weight:600;">✓ OK</span>';
-
             const svc = r.logiciel ? `${r.protocole} <small style="color:#58a6ff">(${r.logiciel})</small>` : (r.protocole || '-');
             html += `<tr>
                 <td><strong>${r.port}</strong></td>
@@ -601,12 +634,35 @@
                 <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;" title="${cn}">${cn}</td>
                 <td>${certHtml}</td>
                 <td>${vulnsHtml}</td>
-                <td>${scoreHtml}</td>
+                <td><span class="score-cell ${sCls}">${s}</span></td>
                 <td>${statutHtml}</td>
             </tr>`;
         });
-
         document.getElementById('resultBody').innerHTML = html;
+
+        // Tableau agrégé (réels d'abord puis informationnels) + Priorisation IA classée.
+        const agg = data.findings_agreges || [];
+        let aggHtml = '', prio = '';
+        agg.forEach((f, i) => {
+            const col = sevColor(f.severite);
+            const sevLab = f.severite === 'INFORMATIF' ? 'Informatif' : f.severite;
+            const crit = (f.criticite != null) ? f.criticite : '-';
+            aggHtml += `<tr>
+                <td>${i + 1}</td><td>${f.nom}</td><td>${f.cve || '-'}</td><td>${f.type || '-'}</td>
+                <td><span style="color:${col};font-weight:600;">${sevLab}</span></td>
+                <td>${crit}</td><td>${(f.ports || []).join(', ')}</td></tr>`;
+            const pct = Math.round(((f.criticite || 0) / 10) * 100);
+            prio += `<div style="margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;font-size:13px;">
+                    <span><strong>${i + 1}.</strong> ${f.nom}</span><span>${crit}</span></div>
+                <div style="height:8px;background:#21262d;border-radius:4px;overflow:hidden;">
+                    <div style="height:100%;width:${pct}%;background:${col};"></div></div></div>`;
+        });
+        document.getElementById('aggBody').innerHTML = aggHtml ||
+            '<tr><td colspan="7" style="text-align:center;color:#3fb950;">✓ Aucune vulnérabilité</td></tr>';
+        document.getElementById('mpPrio').innerHTML = prio ||
+            '<span style="color:#8b949e;">Aucune vulnérabilité à prioriser</span>';
+
         document.getElementById('resultSection').style.display = 'block';
     }
 
@@ -617,8 +673,9 @@
         const saved = localStorage.getItem(SCAN_KEY);
         if (!saved) return;
         try {
-            const {scanId} = JSON.parse(saved);
+            const {scanId, cible} = JSON.parse(saved);
             if (!scanId) return;
+            if (cible) document.getElementById('cible').value = cible;   // hôte pré-rempli
             ouvrirFlux(scanId, true);
         } catch (e) {
             localStorage.removeItem(SCAN_KEY);

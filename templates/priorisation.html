@@ -295,16 +295,32 @@
         }
 
         .badge-high{
-            background:#3d2a0f;
-            color:#d29922;
+            background:#3d1a0f;
+            color:#fb6a3c;
             padding:2px 8px;
             border-radius:4px;
             font-size:10px;
         }
 
         .badge-medium{
-            background:#1f3a1f;
-            color:#3fb950;
+            background:#3d2a0f;
+            color:#f0883e;
+            padding:2px 8px;
+            border-radius:4px;
+            font-size:10px;
+        }
+
+        .badge-low{
+            background:#2d2a12;
+            color:#e3b341;
+            padding:2px 8px;
+            border-radius:4px;
+            font-size:10px;
+        }
+
+        .badge-informatif{
+            background:#0f2333;
+            color:#58a6ff;
             padding:2px 8px;
             border-radius:4px;
             font-size:10px;
@@ -726,14 +742,14 @@ function toggleTheme() {
 
                         {% if v.severite == 'CRITICAL' %}
                             <span class="badge-critical">CRITICAL</span>
-
                         {% elif v.severite == 'HIGH' %}
                             <span class="badge-high">HIGH</span>
-
+                        {% elif v.severite == 'MEDIUM' %}
+                            <span class="badge-medium">MEDIUM</span>
+                        {% elif v.severite == 'INFORMATIF' %}
+                            <span class="badge-informatif">INFO</span>
                         {% else %}
-                            <span class="badge-medium">
-                                {{ v.severite }}
-                            </span>
+                            <span class="badge-low">{{ v.severite }}</span>
                         {% endif %}
 
                     </div>

@@ -75,6 +75,8 @@ def severite_vers_priorite(severite):
     Convertit la sévérité calculée par le modèle RF
     en niveau de priorité cohérent pour l'affichage.
     """
+    if severite == 'INFORMATIF':
+        return 'INFORMATIF'
     if severite == 'CRITICAL':
         return 'HAUTE'
     elif severite == 'HIGH':
@@ -116,6 +118,11 @@ def vulns_scorees_locales(resultats_bruts):
     for base in vulns_brutes_depuis_scan(resultats_bruts):
         score = predire_score(base['cvss'], base['epss'], base['type'])
         out.append({**base, 'score_ia': round(score, 2), 'criticite': round(score, 2)})
+    # Inclure aussi cipher/DH/certificat pour que la comparaison/diff les voie
+    # (identité du diff = nom ; score_ia attendu par comparison_bp).
+    from agent_ia.analyse_findings import findings_ciphers, findings_certificat
+    for f in findings_ciphers(resultats_bruts) + findings_certificat(resultats_bruts):
+        out.append({**f, 'score_ia': f['criticite']})
     return out
 
 
@@ -152,6 +159,19 @@ def analyser_resultats(resultats_bruts, on_finding=None):
         vuln['priorite']  = severite_vers_priorite(vuln['severite'])
         if on_finding:
             on_finding(vuln)            # streaming temps réel (SSE)
+
+    # ── Findings cipher/DH/certificat (source unique partagée multi-port) ──
+    # Émis APRÈS la boucle de scoring (ils arrivent déjà scorés), décorés de
+    # 'source' + 'description' attendus côté mono-port (DB scan.py, SSE on_finding).
+    # Import paresseux : analyse_findings réimporte agent -> éviter le cycle.
+    from agent_ia.analyse_findings import findings_ciphers, findings_certificat
+    nouveaux = findings_ciphers(resultats_bruts) + findings_certificat(resultats_bruts)
+    for f in nouveaux:
+        f['source'] = 'statique'
+        f.setdefault('description', f['nom'])
+        if on_finding:
+            on_finding(f)
+    vulnerabilites += nouveaux
 
     # ── Trier par score décroissant ───────────────────────────────────────
     return sorted(vulnerabilites, key=lambda x: x['criticite'], reverse=True)

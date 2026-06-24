@@ -24,6 +24,28 @@ def est_adresse_ip(cible):
     return bool(re.match(pattern, cible))
 
 
+def _details_ciphers(acceptees):
+    """Détails JSON-sûrs des suites acceptées (nom + taille + clé éphémère).
+    Ne stocke aucun bytearray -> json.dumps(resultats_bruts) reste sûr.
+    # ponytail: petite duplication assumée de scanner_multiport._collecter_ciphers ;
+    # la version mono-port n'alimente pas 'ciphers_acceptees' (inutile au PDF ReportLab)."""
+    out = []
+    for c in acceptees or []:
+        try:
+            nom = c.cipher_suite.name
+        except Exception:
+            continue
+        eph = getattr(c, 'ephemeral_key', None)
+        out.append({
+            'nom': nom,
+            'key_size': getattr(c.cipher_suite, 'key_size', None),
+            'is_anonymous': bool(getattr(c.cipher_suite, 'is_anonymous', False)),
+            'ephemeral_type': getattr(eph, 'type_name', None) if eph is not None else None,
+            'ephemeral_size': getattr(eph, 'size', None) if eph is not None else None,
+        })
+    return out
+
+
 def scanner_cible(hostname, port=443):
     try:
         hostname = nettoyer_cible(hostname)
@@ -79,7 +101,8 @@ def scanner_cible(hostname, port=443):
             },
             'certificat': {},
             'heartbleed': False,
-            'robot':      False
+            'robot':      False,
+            'ciphers_details': [],
         }
 
         for result in scanner.get_results():
@@ -88,51 +111,59 @@ def scanner_cible(hostname, port=443):
 
             scan = result.scan_result
 
-            # SSL 2.0
+            # Protocoles + collecte des suites sur TOUTES les versions (RC4/export/3DES/
+            # DHE-export ne négocient que sur SSL3/TLS1.0/1.1 — les ignorer = faux négatifs).
             try:
                 r = scan.ssl_2_0_cipher_suites
                 if r.result is not None:
-                    resultats_bruts['protocoles']['ssl2'] = len(r.result.accepted_cipher_suites) > 0
+                    acc = r.result.accepted_cipher_suites
+                    resultats_bruts['protocoles']['ssl2'] = len(acc) > 0
+                    resultats_bruts['ciphers_details'] += _details_ciphers(acc)
             except:
                 pass
 
-            # SSL 3.0
             try:
                 r = scan.ssl_3_0_cipher_suites
                 if r.result is not None:
-                    resultats_bruts['protocoles']['ssl3'] = len(r.result.accepted_cipher_suites) > 0
+                    acc = r.result.accepted_cipher_suites
+                    resultats_bruts['protocoles']['ssl3'] = len(acc) > 0
+                    resultats_bruts['ciphers_details'] += _details_ciphers(acc)
             except:
                 pass
 
-            # TLS 1.0
             try:
                 r = scan.tls_1_0_cipher_suites
                 if r.result is not None:
-                    resultats_bruts['protocoles']['tls10'] = len(r.result.accepted_cipher_suites) > 0
+                    acc = r.result.accepted_cipher_suites
+                    resultats_bruts['protocoles']['tls10'] = len(acc) > 0
+                    resultats_bruts['ciphers_details'] += _details_ciphers(acc)
             except:
                 pass
 
-            # TLS 1.1
             try:
                 r = scan.tls_1_1_cipher_suites
                 if r.result is not None:
-                    resultats_bruts['protocoles']['tls11'] = len(r.result.accepted_cipher_suites) > 0
+                    acc = r.result.accepted_cipher_suites
+                    resultats_bruts['protocoles']['tls11'] = len(acc) > 0
+                    resultats_bruts['ciphers_details'] += _details_ciphers(acc)
             except:
                 pass
 
-            # TLS 1.2
             try:
                 r = scan.tls_1_2_cipher_suites
                 if r.result is not None:
-                    resultats_bruts['protocoles']['tls12'] = len(r.result.accepted_cipher_suites) > 0
+                    acc = r.result.accepted_cipher_suites
+                    resultats_bruts['protocoles']['tls12'] = len(acc) > 0
+                    resultats_bruts['ciphers_details'] += _details_ciphers(acc)
             except:
                 pass
 
-            # TLS 1.3
             try:
                 r = scan.tls_1_3_cipher_suites
                 if r.result is not None:
-                    resultats_bruts['protocoles']['tls13'] = len(r.result.accepted_cipher_suites) > 0
+                    acc = r.result.accepted_cipher_suites
+                    resultats_bruts['protocoles']['tls13'] = len(acc) > 0
+                    resultats_bruts['ciphers_details'] += _details_ciphers(acc)
             except:
                 pass
 
@@ -157,17 +188,17 @@ def scanner_cible(hostname, port=443):
             except:
                 pass
 
-            # Certificat
+            # Certificat — détail complet + échecs, via la source unique multi-port
+            # (import paresseux : scanner_multiport importe scanner -> éviter le cycle).
             try:
                 r = scan.certificate_info
                 if r.result is not None:
-                    for deployment in r.result.certificate_deployments:
-                        cert = deployment.received_certificate_chain[0]
-                        resultats_bruts['certificat'] = {
-                            'expiration': str(cert.not_valid_after_utc),
-                            'expire':     str(cert.not_valid_after_utc),
-                            'valide':     deployment.verified_certificate_chain is not None
-                        }
+                    from agent_ia.scanner_multiport import extract_certificate_info
+                    certificat = extract_certificate_info(r.result)
+                    # Alias hérités de la forme mono-port historique (zéro coût, sûreté).
+                    certificat['valide']     = certificat.get('valid')
+                    certificat['expiration'] = certificat.get('expire')
+                    resultats_bruts['certificat'] = certificat
             except:
                 pass
 

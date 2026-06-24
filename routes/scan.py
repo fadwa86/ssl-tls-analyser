@@ -45,8 +45,8 @@ def lancer_scan():
     # Capturer le contexte applicatif avant le thread
     app = current_app._get_current_object()
 
-    # État partagé + journal d'évènements diffusé en SSE
-    etat = {'statut': 'EN_COURS', 'evenements': []}
+    # État partagé + journal d'évènements diffusé en SSE (cible mémorisée pour pré-remplissage).
+    etat = {'statut': 'EN_COURS', 'cible': cible_url, 'evenements': []}
     scans_en_cours[scan_id] = etat
 
     def emettre(ev):

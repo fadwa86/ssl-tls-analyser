@@ -158,7 +158,44 @@ class ComparaisonVulnerabilite(db.Model):
     score_ia_ancien = db.Column(db.Float, nullable=True)
     score_ia_nouveau = db.Column(db.Float, nullable=True)
     
-    # Classification: 'FIXED', 'NEW', 'UNCHANGED'
+    # Classification (codes ASCII) : 'FIXED', 'NEW', 'UNCHANGED', 'AGGRAVE', 'AMELIORE'
     type = db.Column(db.String(20), nullable=False)
-    
+
+    details = db.Column(db.Text, nullable=True)
+
+
+class ComparaisonScanMultiPort(db.Model):
+    """Comparaison de deux scans MULTI-PORT (diff par (port, finding))."""
+    __tablename__ = 'comparaison_scan_multiport'
+    id = db.Column(db.Integer, primary_key=True)
+    scan_ancien_id = db.Column(db.Integer, db.ForeignKey('scan_multiport.id'), nullable=False)
+    scan_nouveau_id = db.Column(db.Integer, db.ForeignKey('scan_multiport.id'), nullable=False)
+    cible_id = db.Column(db.Integer, db.ForeignKey('cible_multiport.id'), nullable=True)
+
+    score_ia_ancien = db.Column(db.Float, nullable=True)
+    score_ia_nouveau = db.Column(db.Float, nullable=True)
+    evolution_ia = db.Column(db.Float, nullable=True)
+    observation_ia = db.Column(db.Text, nullable=True)
+
+    nb_corrigees = db.Column(db.Integer, default=0)
+    nb_nouvelles = db.Column(db.Integer, default=0)
+    nb_inchangees = db.Column(db.Integer, default=0)
+    nb_aggravees = db.Column(db.Integer, default=0)
+    nb_ameliorees = db.Column(db.Integer, default=0)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class ComparaisonFindingMultiPort(db.Model):
+    """Chaque finding diffé, identité = (port, nom)."""
+    __tablename__ = 'comparaison_finding_multiport'
+    id = db.Column(db.Integer, primary_key=True)
+    comparaison_id = db.Column(db.Integer, db.ForeignKey('comparaison_scan_multiport.id'), nullable=False)
+
+    port = db.Column(db.Integer, nullable=True)
+    nom = db.Column(db.String(200), nullable=False)
+    cve = db.Column(db.String(50), nullable=True)
+    score_ia_ancien = db.Column(db.Float, nullable=True)
+    score_ia_nouveau = db.Column(db.Float, nullable=True)
+    type = db.Column(db.String(20), nullable=False)   # FIXED/NEW/UNCHANGED/AGGRAVE/AMELIORE (ASCII)
     details = db.Column(db.Text, nullable=True)

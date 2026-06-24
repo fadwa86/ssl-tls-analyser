@@ -33,14 +33,14 @@
         .btn-scan:hover { background: #388bfd; }
         .btn-scan.btn-stop { background: #da3633; }
         .btn-scan.btn-stop:hover { background: #f85149; }
-        .cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 24px; }
+        .cards { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 24px; }
         .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; min-width: 0; overflow: hidden; }
         .card .card-label { font-size: 10px; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .card .card-value { font-size: 28px; font-weight: bold; margin-bottom: 4px; }
         .card .card-sub { font-size: 11px; color: #8b949e; }
-        .card-critical .card-value { color: #f85149; }
-        .card-high     .card-value { color: #d29922; }
-        .card-medium   .card-value { color: #3fb950; }
+        .card-critical .card-value { color: #f85149; }   /* rouge */
+        .card-high     .card-value { color: #fb6a3c; }   /* rouge-orangé */
+        .card-medium   .card-value { color: #f0883e; }   /* orange */
         .card-score    .card-value { color: #3fb950; }
         .card-cert     .card-value { color: #58a6ff; font-size: 16px; }
         .content-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
@@ -49,10 +49,11 @@
         .vuln-table { width: 100%; border-collapse: collapse; }
         .vuln-table th { font-size: 11px; color: #8b949e; text-transform: uppercase; padding: 8px 12px; text-align: left; border-bottom: 1px solid #30363d; }
         .vuln-table td { padding: 12px; font-size: 13px; border-bottom: 1px solid #21262d; }
-        .badge-critical { background: #3d0f0f; color: #f85149; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
-        .badge-high     { background: #3d2a0f; color: #d29922; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
-        .badge-medium   { background: #1f3a1f; color: #3fb950; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
-        .badge-low      { background: #21262d; color: #8b949e; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
+        .badge-critical  { background: #3d0f0f; color: #f85149; padding: 3px 10px; border-radius: 4px; font-size: 11px; }  /* rouge */
+        .badge-high      { background: #3d1a0f; color: #fb6a3c; padding: 3px 10px; border-radius: 4px; font-size: 11px; }  /* rouge-orangé */
+        .badge-medium    { background: #3d2a0f; color: #f0883e; padding: 3px 10px; border-radius: 4px; font-size: 11px; }  /* orange */
+        .badge-low       { background: #2d2a12; color: #e3b341; padding: 3px 10px; border-radius: 4px; font-size: 11px; }  /* jaune */
+        .badge-informatif{ background: #0f2333; color: #58a6ff; padding: 3px 10px; border-radius: 4px; font-size: 11px; }  /* bleu */
         .badge-live     { background: #1a4a1a; color: #3fb950; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px; }
         .badge-statique { background: #21262d; color: #8b949e; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px; }
         .prio-section { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; }
@@ -117,6 +118,10 @@
         <div class="card card-medium">
             <div class="card-label">Vulnérabilités moyennes</div>
             <div class="card-value" id="nbMedium">—</div>
+        </div>
+        <div class="card" style="border-color:#1f6feb;">
+            <div class="card-label">Informatif</div>
+            <div class="card-value" id="nbInformatif" style="color:#58a6ff;">—</div>
         </div>
         <div class="card card-score">
             <div class="card-label">Score TLS Global</div>
@@ -227,6 +232,7 @@ function lancerScan() {
     .then(data => {
         if (data.succes) {
             localStorage.setItem(SCAN_KEY, data.scan_id);
+            localStorage.setItem('scan_simple_cible', cible);   // hôte mémorisé
             ouvrirFlux(data.scan_id, false);
         } else {
             alert('Erreur : ' + data.erreur);
@@ -291,14 +297,12 @@ function afficherFindingsLive(findings) {
     document.getElementById('nbCritique').textContent = findings.filter(v => v.severite === 'CRITICAL').length;
     document.getElementById('nbHigh').textContent     = findings.filter(v => v.severite === 'HIGH').length;
     document.getElementById('nbMedium').textContent   = findings.filter(v => v.severite === 'MEDIUM').length;
+    document.getElementById('nbInformatif').textContent = findings.filter(v => v.severite === 'INFORMATIF').length;
 
     let html = `<table class="vuln-table"><thead><tr>
         <th>NOM</th><th>CVE</th><th>TYPE</th><th>SÉVÉRITÉ</th><th>SCORE IA</th>
     </tr></thead><tbody>`;
     findings.forEach(v => {
-        const bc = v.severite === 'CRITICAL' ? 'badge-critical'
-                 : v.severite === 'HIGH'     ? 'badge-high'
-                 : v.severite === 'MEDIUM'   ? 'badge-medium' : 'badge-low';
         const src = v.source === 'temps_reel'
             ? '<span class="badge-live">🟢 Live</span>'
             : '<span class="badge-statique">⚪ Statique</span>';
@@ -306,7 +310,7 @@ function afficherFindingsLive(findings) {
             <td>${v.nom}</td>
             <td style="color:#8b949e">${v.cve} ${src}</td>
             <td style="color:#8b949e">${v.type}</td>
-            <td><span class="${bc}">${v.severite}</span></td>
+            <td>${badgeVulnHTML(v)}</td>
             <td style="color:#58a6ff; font-weight:bold">${v.criticite}</td>
         </tr>`;
     });
@@ -317,9 +321,20 @@ function afficherFindingsLive(findings) {
 // Reprise au chargement : si un scan était en cours (ou vient de finir), on s'y
 // reconnecte au lieu de repartir d'une page vide.
 window.addEventListener('DOMContentLoaded', () => {
+    const c = localStorage.getItem('scan_simple_cible');
+    if (c) document.getElementById('cibleInput').value = c;   // hôte pré-rempli
     const sid = localStorage.getItem(SCAN_KEY);
     if (sid) ouvrirFlux(sid, true);
 });
+
+// Badge de sévérité (INFORMATIF en gris « INFO »).
+function badgeVulnHTML(v) {
+    if (v.severite === 'INFORMATIF')
+        return '<span class="badge-informatif">INFO</span>';
+    const bc = v.severite === 'CRITICAL' ? 'badge-critical' : v.severite === 'HIGH' ? 'badge-high'
+             : v.severite === 'MEDIUM' ? 'badge-medium' : 'badge-low';
+    return `<span class="${bc}">${v.severite}</span>`;
+}
 
 function reinitCartes() {
     document.getElementById('scoreTLS').textContent   = '—';
@@ -327,6 +342,7 @@ function reinitCartes() {
     document.getElementById('nbCritique').textContent = '—';
     document.getElementById('nbHigh').textContent     = '—';
     document.getElementById('nbMedium').textContent   = '—';
+    document.getElementById('nbInformatif').textContent = '—';
 }
 
 // ── Afficher résultats ────────────────────────────────────────────────────
@@ -335,10 +351,12 @@ function afficherResultats(vulns, scoreTLS, expiration) {
     const critiques = vulns.filter(v => v.severite === 'CRITICAL').length;
     const high      = vulns.filter(v => v.severite === 'HIGH').length;
     const medium    = vulns.filter(v => v.severite === 'MEDIUM').length;
+    const informatif = vulns.filter(v => v.severite === 'INFORMATIF').length;
 
     document.getElementById('nbCritique').textContent = critiques;
     document.getElementById('nbHigh').textContent     = high;
     document.getElementById('nbMedium').textContent   = medium;
+    document.getElementById('nbInformatif').textContent = informatif;
 
     // Score TLS global
     const scoreEl = document.getElementById('scoreTLS');
@@ -384,12 +402,6 @@ function afficherResultats(vulns, scoreTLS, expiration) {
         <tbody>`;
 
     vulns.forEach(v => {
-        // Sévérité déterminée APRÈS le score RF
-        const badgeClass = v.severite === 'CRITICAL' ? 'badge-critical'
-                         : v.severite === 'HIGH'     ? 'badge-high'
-                         : v.severite === 'MEDIUM'   ? 'badge-medium'
-                         : 'badge-low';
-
         const sourceIcon = v.source === 'temps_reel'
             ? '<span class="badge-live">🟢 Live</span>'
             : '<span class="badge-statique">⚪ Statique</span>';
@@ -398,7 +410,7 @@ function afficherResultats(vulns, scoreTLS, expiration) {
             <td>${v.nom}</td>
             <td style="color:#8b949e">${v.cve} ${sourceIcon}</td>
             <td style="color:#8b949e">${v.type}</td>
-            <td><span class="${badgeClass}">${v.severite}</span></td>
+            <td>${badgeVulnHTML(v)}</td>
             <td style="color:#58a6ff; font-weight:bold">${v.criticite}</td>
         </tr>`;
     });

@@ -1,14 +1,19 @@
-"""Diagnostic ponctuel : pourquoi expired.badssl.com ne remonte aucun finding.
+"""Diagnostic ponctuel : pourquoi une cible ne remonte aucun finding.
 Scanne UNIQUEMENT le certificat de la cible et affiche si sslyze a renvoyé
 un résultat ou une ERREUR (slow connection vs bug de parsing).
-Lancer :  python diag_cert.py   [hote]  [port]
+Lancer :  python diag_cert.py   <hote>  [port]
 """
 import sys
 from sslyze import (Scanner, ServerScanRequest, ServerNetworkLocation,
                     ServerNetworkConfiguration)
 from sslyze.plugins.scan_commands import ScanCommand
 
-host = sys.argv[1] if len(sys.argv) > 1 else 'expired.badssl.com'
+# Hôte requis en argument : aucun hôte de test n'est codé en dur dans le code exécutable
+# (les cibles de test vivent uniquement dans tests/data/cibles_blueprint.py).
+if len(sys.argv) < 2:
+    print("Usage: python diag_cert.py <hote> [port]")
+    sys.exit(1)
+host = sys.argv[1]
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 443
 
 print(f"== Scan certificat {host}:{port} ==")

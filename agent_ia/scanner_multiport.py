@@ -6,9 +6,10 @@ import gc
 import concurrent.futures
 from datetime import datetime, timezone
 
-from agent_ia.decouverte import decouvrir_ports_ouverts, identifier_service
+from agent_ia.decouverte import decouvrir_ports_ouverts, identifier_service, port_ouvert
 from agent_ia.scanner import detecter_serveur
 from agent_ia.agent import determiner_severite, severite_vers_priorite
+from agent_ia.analyse_certificat import classer_echec_certificat
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -55,6 +56,8 @@ def extract_certificate_info(cert_result):
         'cn':     None,
         'issuer': None,
         'signature_algo': None,
+        'echecs': [],
+        'vue_validation': None,
     }
     try:
         if cert_result.certificate_deployments:
@@ -99,10 +102,56 @@ def extract_certificate_info(cert_result):
             except:
                 pass
 
+            # Projection de validation + échecs. Try ISOLÉ : une erreur ici ne doit
+            # JAMAIS effacer valid/expire/cn/issuer extraits ci-dessus.
+            try:
+                pvrs = list(getattr(deployment, 'path_validation_results', []) or [])
+                ok = any(getattr(p, 'was_validation_successful', False) for p in pvrs) if pvrs else None
+                err = None
+                for p in pvrs:
+                    if not getattr(p, 'was_validation_successful', False):
+                        err = getattr(p, 'validation_error', None)
+                        if err:
+                            break
+                vue = {
+                    'issuer_eq_subject': cert.issuer == cert.subject,
+                    'path_validation_ok': ok,
+                    'validation_error': str(err) if err else None,
+                    'chain_order': getattr(deployment, 'received_chain_has_valid_order', None),
+                    'anchor_present': getattr(deployment, 'received_chain_contains_anchor_certificate', None),
+                    'sha1_signature': getattr(deployment, 'verified_chain_has_sha1_signature', None),
+                    'scts_count': getattr(deployment, 'leaf_certificate_signed_certificate_timestamps_count', None),
+                }
+                cert_info['vue_validation'] = vue
+                cert_info['echecs'] = classer_echec_certificat(vue)
+            except Exception:
+                pass
+
     except Exception as e:
         cert_info['error'] = str(e)
 
     return cert_info
+
+
+def _collecter_ciphers(resultats_port, acceptees):
+    """Ajoute les suites acceptées (nom + détails JSON-sûrs) — sur TOUTES les versions.
+    Ne stocke JAMAIS les champs bytearray (prime/generator/public_bytes) : on ne garde
+    que type_name (str) et size (int) de la clé éphémère -> json.dumps reste sûr.
+    Préserve ciphers_acceptees (liste de noms) consommée par le PDF."""
+    for c in acceptees or []:
+        try:
+            nom = c.cipher_suite.name
+        except Exception:
+            continue
+        resultats_port['ciphers_acceptees'].append(nom)
+        eph = getattr(c, 'ephemeral_key', None)
+        resultats_port['ciphers_details'].append({
+            'nom': nom,
+            'key_size': getattr(c.cipher_suite, 'key_size', None),
+            'is_anonymous': bool(getattr(c.cipher_suite, 'is_anonymous', False)),
+            'ephemeral_type': getattr(eph, 'type_name', None) if eph is not None else None,
+            'ephemeral_size': getattr(eph, 'size', None) if eph is not None else None,
+        })
 
 
 def scanner_port_sslyze(host, port, protocole, use_starttls=False):
@@ -125,6 +174,7 @@ def scanner_port_sslyze(host, port, protocole, use_starttls=False):
         'ccs':         False,
         'downgrade':   False,
         'ciphers_acceptees': [],
+        'ciphers_details':   [],
     }
 
     try:
@@ -185,28 +235,38 @@ def scanner_port_sslyze(host, port, protocole, use_starttls=False):
             sr = result.scan_result
 
             # ✅ Accès direct aux attributs
+            # Collecte des suites sur TOUTES les versions : RC4/export/3DES/DHE-export
+            # ne négocient que sur SSL3/TLS1.0/1.1 — les ignorer = faux négatifs garantis.
             try:
                 if sr.ssl_2_0_cipher_suites and sr.ssl_2_0_cipher_suites.result:
-                    if sr.ssl_2_0_cipher_suites.result.accepted_cipher_suites:
+                    acc = sr.ssl_2_0_cipher_suites.result.accepted_cipher_suites
+                    if acc:
                         protocols['ssl2'] = True
+                        _collecter_ciphers(resultats_port, acc)
             except: pass
 
             try:
                 if sr.ssl_3_0_cipher_suites and sr.ssl_3_0_cipher_suites.result:
-                    if sr.ssl_3_0_cipher_suites.result.accepted_cipher_suites:
+                    acc = sr.ssl_3_0_cipher_suites.result.accepted_cipher_suites
+                    if acc:
                         protocols['ssl3'] = True
+                        _collecter_ciphers(resultats_port, acc)
             except: pass
 
             try:
                 if sr.tls_1_0_cipher_suites and sr.tls_1_0_cipher_suites.result:
-                    if sr.tls_1_0_cipher_suites.result.accepted_cipher_suites:
+                    acc = sr.tls_1_0_cipher_suites.result.accepted_cipher_suites
+                    if acc:
                         protocols['tls10'] = True
+                        _collecter_ciphers(resultats_port, acc)
             except: pass
 
             try:
                 if sr.tls_1_1_cipher_suites and sr.tls_1_1_cipher_suites.result:
-                    if sr.tls_1_1_cipher_suites.result.accepted_cipher_suites:
+                    acc = sr.tls_1_1_cipher_suites.result.accepted_cipher_suites
+                    if acc:
                         protocols['tls11'] = True
+                        _collecter_ciphers(resultats_port, acc)
             except: pass
 
             try:
@@ -214,7 +274,7 @@ def scanner_port_sslyze(host, port, protocole, use_starttls=False):
                     acceptees = sr.tls_1_2_cipher_suites.result.accepted_cipher_suites
                     if acceptees:
                         protocols['tls12'] = True
-                        resultats_port['ciphers_acceptees'] += [c.cipher_suite.name for c in acceptees]
+                        _collecter_ciphers(resultats_port, acceptees)
             except: pass
 
             try:
@@ -222,7 +282,7 @@ def scanner_port_sslyze(host, port, protocole, use_starttls=False):
                     acceptees = sr.tls_1_3_cipher_suites.result.accepted_cipher_suites
                     if acceptees:
                         protocols['tls13'] = True
-                        resultats_port['ciphers_acceptees'] += [c.cipher_suite.name for c in acceptees]
+                        _collecter_ciphers(resultats_port, acceptees)
             except: pass
 
             try:
@@ -311,6 +371,18 @@ def _certificat_expire(resultats_port):
         return False
 
 
+def _findings_ciphers(resultats_port):
+    """Délégation vers la source unique agent_ia.analyse_findings (import paresseux)."""
+    from agent_ia.analyse_findings import findings_ciphers
+    return findings_ciphers(resultats_port)
+
+
+def _findings_certificat(resultats_port):
+    """Délégation vers la source unique agent_ia.analyse_findings (import paresseux)."""
+    from agent_ia.analyse_findings import findings_certificat
+    return findings_certificat(resultats_port)
+
+
 def analyser_vulns_port(resultats_port):
     """
     Construit la liste des findings d'un port et le score moyen (0-10).
@@ -319,28 +391,38 @@ def analyser_vulns_port(resultats_port):
     (predire_score → determiner_severite), jamais codée en dur.
     """
     from agent_ia.modele_rf import predire_score
+    from agent_ia.classification import est_informatif, SEVERITE_INFO, PRIORITE_INFO
 
-    declencheurs = list(_VULNS_PORT)
-    if _certificat_expire(resultats_port):
-        declencheurs.append((lambda r: True, 'Certificat expiré', '-', 'Protocole faible', 7.0, 0.60))
-
+    # L'expiration n'est PLUS un déclencheur ici : 'Certificat expiré' (CWE-298) est émis
+    # par findings_certificat (source unique). _certificat_expire reste défini (consommé
+    # par tests/observed.py + tests unitaires) mais n'est plus appelé ici.
     findings = []
     protocoles = resultats_port.get('protocoles', {})
     contexte = {**resultats_port, 'protocoles': protocoles}
-    for condition, nom, cve, type_v, cvss, epss in declencheurs:
+    for condition, nom, cve, type_v, cvss, epss in _VULNS_PORT:
         if not condition(contexte):
             continue
         criticite = round(predire_score(cvss, epss, type_v), 2)
         severite = determiner_severite(criticite)
-        findings.append({
+        f = {
             'nom': nom, 'cve': cve, 'type': type_v,
             'cvss': cvss, 'epss': epss, 'criticite': criticite,
             'severite': severite, 'priorite': severite_vers_priorite(severite),
-        })
+        }
+        if est_informatif(f):                  # 'TLS Downgrade' (cve '-') -> informationnel
+            f['severite'] = SEVERITE_INFO
+            f['priorite'] = PRIORITE_INFO
+        findings.append(f)
+
+    # Findings supplémentaires : chiffrement faible / DH faible / échecs+expiration de certificat.
+    findings += _findings_ciphers(resultats_port)
+    findings += _findings_certificat(resultats_port)
 
     if not findings:
         return 0.0, []
-    score = round(min(sum(f['criticite'] for f in findings) / len(findings), 10.0), 2)
+    # Score = moyenne des VRAIES vulns uniquement (les informationnels n'inflent pas le risque).
+    reels = [f for f in findings if f['severite'] != SEVERITE_INFO]
+    score = round(min(sum(f['criticite'] for f in reels) / len(reels), 10.0), 2) if reels else 0.0
     return score, findings
 
 
@@ -353,7 +435,7 @@ def _scanner_un_port(host, port):
     if service is None:
         # Port ouvert mais non-TLS (SSH, HTTP en clair…) : signalé, pas analysé.
         return {'port': port, 'protocole': 'non-TLS', 'classe': 'non_tls',
-                'statut': 'IGNORE', 'score_risque': 0.0, 'findings': []}
+                'statut': 'IGNORE', 'ouvert': True, 'score_risque': 0.0, 'findings': []}
 
     protocole, use_starttls, logiciel = service
     resultats_port = scanner_port_sslyze(host, port, protocole, use_starttls)
@@ -362,6 +444,10 @@ def _scanner_un_port(host, port):
     resultats_port['findings']     = findings
     resultats_port['logiciel']     = logiciel
     resultats_port['classe']       = 'starttls' if use_starttls else 'direct_tls'
+    # 'ouvert' = port réellement ouvert (TLS OK, ou TLS échoué mais TCP accepté).
+    # Le statut SSLyze ne suffit pas : un port ouvert sans TLS échoue le handshake
+    # (ERREUR) tout en restant ouvert → on le reconnaît par un connect TCP direct.
+    resultats_port['ouvert'] = resultats_port['statut'] == 'SUCCES' or port_ouvert(host, port)
     return resultats_port
 
 

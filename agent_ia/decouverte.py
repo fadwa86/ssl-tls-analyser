@@ -31,14 +31,23 @@ PORTS_TLS_IMPLICITE = {443: 'HTTPS', 8443: 'HTTPS', 465: 'SMTPS',
 _LOGICIELS = ('postfix', 'dovecot', 'exim', 'sendmail', 'courier')
 
 
+def port_ouvert(host, port, timeout=1.5):
+    """True si le port TCP accepte une connexion (port réellement ouvert).
+
+    Sert à distinguer un port OUVERT d'un port FERMÉ indépendamment du résultat
+    TLS : un port ouvert sans TLS (HTTP en clair, service custom) échoue la poignée
+    de main SSLyze mais reste bel et bien ouvert."""
+    try:
+        with socket.create_connection((host, port), timeout):
+            return True
+    except OSError:
+        return False
+
+
 def decouvrir_ports_ouverts(host, ports=TOP_100_PORTS, timeout=1.0, max_workers=30):
     """Scan TCP connect parallèle ; retourne la liste triée des ports ouverts."""
     def _ouvert(port):
-        try:
-            with socket.create_connection((host, port), timeout):
-                return port
-        except OSError:
-            return None
+        return port if port_ouvert(host, port, timeout) else None
     ouverts = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
         for r in ex.map(_ouvert, ports):

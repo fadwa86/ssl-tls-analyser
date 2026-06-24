@@ -1,5 +1,6 @@
 import os
 import sys
+import ssl
 # Console Windows en cp1252 par défaut : un print() contenant '→', '✓', etc. fait
 # planter le thread de scan (UnicodeEncodeError). On force la sortie en UTF-8.
 for _flux in (sys.stdout, sys.stderr):
@@ -78,8 +79,12 @@ if __name__ == '__main__':
         from generate_cert import generer_cert
         generer_cert(cert, key)
 
+    # Contexte SSL explicite : équivalent à ce que Werkzeug construit depuis (cert, key)
+    # mais immunise contre une régression de la conversion tuple -> SSLContext.
+    ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ssl_ctx.load_cert_chain(cert, key)
+
     # threaded=True : chaque connexion SSE garde un thread ouvert ; sans cela un flux
     # bloquerait toutes les autres requêtes sur le serveur de dev.
-    # ssl_context passe via **options jusqu'à Werkzeug (serveur HTTPS-only sur ce port).
-    app.run(host='127.0.0.1', port=5000, ssl_context=(cert, key),
+    app.run(host='127.0.0.1', port=5000, ssl_context=ssl_ctx,
             debug=True, threaded=True)

@@ -1,0 +1,8 @@
+# Dépendances de test (le projet n'a pas de requirements.txt — voir CLAUDE.md).
+# Installer :  .venv\Scripts\python -m pip install -r requirements-dev.txt
+pytest>=8.2
+# Dépendances runtime déjà présentes dans le .venv, épinglées pour reproductibilité :
+sslyze==6.3.1
+cryptography==46.0.7
+numpy==2.4.6
+scikit-learn==1.9.0

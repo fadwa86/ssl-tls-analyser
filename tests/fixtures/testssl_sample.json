@@ -1,0 +1,9 @@
+[
+  {"id": "RC4", "severity": "HIGH", "finding": "RC4 ciphers are offered", "cve": "CVE-2013-2566"},
+  {"id": "SWEET32", "severity": "MEDIUM", "finding": "uses 64 bit block ciphers (3DES)", "cve": "CVE-2016-2183"},
+  {"id": "LOGJAM", "severity": "HIGH", "finding": "common prime with 512 bit detected", "cve": "CVE-2015-4000"},
+  {"id": "SSLv3", "severity": "HIGH", "finding": "SSLv3 is offered"},
+  {"id": "heartbleed", "severity": "CRITICAL", "finding": "vulnerable (CVE-2014-0160)", "cve": "CVE-2014-0160"},
+  {"id": "cert_expirationStatus", "severity": "OK", "finding": "valid for 200 days"},
+  {"id": "scanTime", "severity": "INFO", "finding": "42s"}
+]

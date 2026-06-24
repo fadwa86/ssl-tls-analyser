@@ -210,6 +210,8 @@
         .label-fixed { background: #10b981; color: #fff; }
         .label-new { background: #ef4444; color: #fff; }
         .label-unchanged { background: #6b7280; color: #fff; }
+        .label-aggrave { background: #f97316; color: #fff; }
+        .label-ameliore { background: #06b6d4; color: #fff; }
         .diff-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
         .diff-table th {
             padding: 12px 16px;
@@ -229,9 +231,13 @@
         .diff-table tr.fixed { background: #ecfdf5; }
         .diff-table tr.new { background: #fef2f2; }
         .diff-table tr.unchanged { background: #f9fafb; }
+        .diff-table tr.aggrave { background: #fff7ed; }
+        .diff-table tr.ameliore { background: #ecfeff; }
         body.dark-mode .diff-table tr.fixed { background: rgba(16,185,129,0.12); }
         body.dark-mode .diff-table tr.new { background: rgba(239,68,68,0.10); }
         body.dark-mode .diff-table tr.unchanged { background: rgba(148,163,184,0.10); }
+        body.dark-mode .diff-table tr.aggrave { background: rgba(249,115,22,0.12); }
+        body.dark-mode .diff-table tr.ameliore { background: rgba(6,182,212,0.12); }
         .obs-box {
             background: #f0f9ff;
             border-left: 4px solid #0ea5e9;
@@ -246,6 +252,8 @@
         .fixed-box { background: #d1fae5; color: #065f46; }
         .new-box { background: #fee2e2; color: #991b1b; }
         .unchanged-box { background: #f3f4f6; color: #6b7280; }
+        .aggrave-box { background: #ffedd5; color: #9a3412; }
+        .ameliore-box { background: #cffafe; color: #155e75; }
     </style>
 </head>
 <body>
@@ -313,25 +321,17 @@
             <div class="card-body-custom">
                 <div id="obsBox" style="display:none;" class="obs-box"></div>
 
-                <div class="row text-center mb-4">
-                    <div class="col-md-4">
-                        <div class="stats-box fixed-box">
-                            <div style="font-size:2rem; font-weight:700;" id="nbCorrigees">0</div>
-                            <div>Corrigées</div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="stats-box new-box">
-                            <div style="font-size:2rem; font-weight:700;" id="nbNouvelles">0</div>
-                            <div>Nouvelles</div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="stats-box unchanged-box">
-                            <div style="font-size:2rem; font-weight:700;" id="nbInchangees">0</div>
-                            <div>Inchangées</div>
-                        </div>
-                    </div>
+                <div class="row text-center mb-4 g-2">
+                    <div class="col"><div class="stats-box fixed-box">
+                        <div style="font-size:1.6rem; font-weight:700;" id="nbCorrigees">0</div><div>Corrigées</div></div></div>
+                    <div class="col"><div class="stats-box new-box">
+                        <div style="font-size:1.6rem; font-weight:700;" id="nbNouvelles">0</div><div>Nouvelles</div></div></div>
+                    <div class="col"><div class="stats-box aggrave-box">
+                        <div style="font-size:1.6rem; font-weight:700;" id="nbAggravees">0</div><div>Aggravées</div></div></div>
+                    <div class="col"><div class="stats-box ameliore-box">
+                        <div style="font-size:1.6rem; font-weight:700;" id="nbAmeliorees">0</div><div>Améliorées</div></div></div>
+                    <div class="col"><div class="stats-box unchanged-box">
+                        <div style="font-size:1.6rem; font-weight:700;" id="nbInchangees">0</div><div>Inchangées</div></div></div>
                 </div>
 
                 <div style="overflow-x:auto;">
@@ -347,6 +347,67 @@
                             </tr>
                         </thead>
                         <tbody id="diffBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════ Comparaison MULTI-PORT ════════════════ -->
+        <div class="card" style="margin-top:24px;">
+            <div class="card-header-custom">
+                <div class="icon-wrap"><i class="fas fa-network-wired"></i></div>
+                <h6>Comparaison Multi-Port (diff par port + finding)</h6>
+            </div>
+            <div class="card-body-custom">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <label class="form-label">Scan multi-port ancien</label>
+                        <select class="form-select" id="mpAncien">
+                            <option value="">-- Choisir un scan --</option>
+                            {% for s in scans_mp %}
+                            <option value="{{ s.id }}" data-url="{{ s.cible_normale }}">{{ s.cible }} — {{ s.date }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Scan multi-port récent</label>
+                        <select class="form-select" id="mpRecent">
+                            <option value="">-- Choisir un scan --</option>
+                            {% for s in scans_mp %}
+                            <option value="{{ s.id }}" data-url="{{ s.cible_normale }}">{{ s.cible }} — {{ s.date }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button class="btn-compare mt-4" id="btnCompareMP" onclick="lancerComparaisonMP()">
+                    <i class="fas fa-play"></i> Lancer la comparaison multi-port
+                </button>
+                <div class="progress-wrap mt-4" id="mpProgressSection" style="display:none;">
+                    <div class="progress-label"><span><span class="spinner-inline"></span>Comparaison…</span><span id="mpProgressPct">0%</span></div>
+                    <div class="progress"><div class="progress-bar" id="mpProgressBar" style="width:0%"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="mpResultSection" style="display:none;">
+            <div class="card-header-custom">
+                <div class="icon-wrap"><i class="fas fa-chart-bar"></i></div>
+                <h6>Résultats — Comparaison Multi-Port</h6>
+                <div id="mpScoreEvolution" class="ms-auto"></div>
+            </div>
+            <div class="card-body-custom">
+                <div id="mpObsBox" style="display:none;" class="obs-box"></div>
+                <div class="row text-center mb-4 g-2">
+                    <div class="col"><div class="stats-box fixed-box"><div style="font-size:1.6rem;font-weight:700;" id="mpCorrigees">0</div><div>Corrigées</div></div></div>
+                    <div class="col"><div class="stats-box new-box"><div style="font-size:1.6rem;font-weight:700;" id="mpNouvelles">0</div><div>Nouvelles</div></div></div>
+                    <div class="col"><div class="stats-box aggrave-box"><div style="font-size:1.6rem;font-weight:700;" id="mpAggravees">0</div><div>Aggravées</div></div></div>
+                    <div class="col"><div class="stats-box ameliore-box"><div style="font-size:1.6rem;font-weight:700;" id="mpAmeliorees">0</div><div>Améliorées</div></div></div>
+                    <div class="col"><div class="stats-box unchanged-box"><div style="font-size:1.6rem;font-weight:700;" id="mpInchangees">0</div><div>Inchangées</div></div></div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="diff-table">
+                        <thead><tr><th>Type</th><th>Port</th><th>Finding</th><th>CVE/CWE</th><th>Ancien</th><th>Nouveau</th><th>Évolution</th></tr></thead>
+                        <tbody id="mpDiffBody"></tbody>
                     </table>
                 </div>
             </div>
@@ -369,6 +430,20 @@ function applyTheme(theme) {
 function toggleTheme() {
     const current = localStorage.getItem('theme') || 'dark';
     applyTheme(current === 'light' ? 'dark' : 'light');
+}
+
+// Mapping des 5 états (codes ASCII en BDD -> classes CSS + libellés accentués FR).
+function diffClasses(t){
+    t = (t || 'UNCHANGED').toUpperCase();
+    const m = {FIXED:['fixed','label-fixed'], NEW:['new','label-new'],
+               UNCHANGED:['unchanged','label-unchanged'], AGGRAVE:['aggrave','label-aggrave'],
+               AMELIORE:['ameliore','label-ameliore']};
+    return m[t] || m.UNCHANGED;
+}
+function diffLabel(t){
+    t = (t || '').toUpperCase();
+    return {FIXED:'Corrigée', NEW:'Nouvelle', UNCHANGED:'Inchangée',
+            AGGRAVE:'Aggravée', AMELIORE:'Améliorée'}[t] || t;
 }
 
 // Comparaison via Server-Sent Events : chaque partie s'affiche dès qu'elle est calculée.
@@ -471,9 +546,7 @@ function majProgress(pct) {
 
 // Ligne de diff partielle (aperçu live ; remplacée par le détail complet au 'done').
 function ajouterLigneDiff(item) {
-    const t = (item.type || 'UNCHANGED').toUpperCase();
-    const rowCls = t === 'FIXED' ? 'fixed' : t === 'NEW' ? 'new' : 'unchanged';
-    const labelCls = t === 'FIXED' ? 'label-fixed' : t === 'NEW' ? 'label-new' : 'label-unchanged';
+    const [rowCls, labelCls] = diffClasses(item.type);
     const sa = Number(item.score_ia_ancien ?? 0);
     const sn = Number(item.score_ia_nouveau ?? 0);
     const diff = sn - sa;
@@ -483,7 +556,7 @@ function ajouterLigneDiff(item) {
     const tr = document.createElement('tr');
     tr.className = rowCls;
     tr.innerHTML = `
-        <td><span class="vuln-label ${labelCls}">${t}</span></td>
+        <td><span class="vuln-label ${labelCls}">${diffLabel(item.type)}</span></td>
         <td>${item.nom || '-'}</td>
         <td>${item.cve || '-'}</td>
         <td>${sa.toFixed(2)}</td>
@@ -517,13 +590,12 @@ function afficherResultats(data) {
     document.getElementById('nbCorrigees').textContent = data.nb_corrigees || 0;
     document.getElementById('nbNouvelles').textContent = data.nb_nouvelles || 0;
     document.getElementById('nbInchangees').textContent = data.nb_inchangees || 0;
+    document.getElementById('nbAggravees').textContent = data.nb_aggravees || 0;
+    document.getElementById('nbAmeliorees').textContent = data.nb_ameliorees || 0;
 
     let html = '';
     (data.vulnerabilites || []).forEach(v => {
-        const t = (v.type || 'UNCHANGED').toUpperCase();
-        const rowCls = t === 'FIXED' ? 'fixed' : t === 'NEW' ? 'new' : 'unchanged';
-        const labelCls = t === 'FIXED' ? 'label-fixed' : t === 'NEW' ? 'label-new' : 'label-unchanged';
-
+        const [rowCls, labelCls] = diffClasses(v.type);
         const sa = Number(v.score_ia_ancien ?? 0);
         const sn = Number(v.score_ia_nouveau ?? 0);
         const diff = sn - sa;
@@ -532,7 +604,7 @@ function afficherResultats(data) {
         else if (diff < 0) evolutionTxt = `↓ ${Math.abs(diff).toFixed(2)}`;
 
         html += `<tr class="${rowCls}">
-            <td><span class="vuln-label ${labelCls}">${t}</span></td>
+            <td><span class="vuln-label ${labelCls}">${diffLabel(v.type)}</span></td>
             <td>${v.nom || '-'}</td>
             <td>${v.cve || '-'}</td>
             <td>${sa.toFixed(2)}</td>
@@ -545,6 +617,123 @@ function afficherResultats(data) {
     document.getElementById('resultSection').style.display = 'block';
     document.getElementById('resultSection').scrollIntoView({behavior: 'smooth'});
 }
+
+// ════════════════ Comparaison MULTI-PORT ════════════════
+const COMP_MP_KEY = 'comparaison_mp_en_cours';
+let evtSourceMP = null;
+
+async function lancerComparaisonMP() {
+    const a = document.getElementById('mpAncien'), n = document.getElementById('mpRecent');
+    if (!a.value || !n.value) { alert('Sélectionnez les 2 scans multi-port'); return; }
+    if (a.value === n.value) { alert('Les scans doivent être différents'); return; }
+    const ua = a.options[a.selectedIndex].getAttribute('data-url');
+    const un = n.options[n.selectedIndex].getAttribute('data-url');
+    if (ua !== un) { alert('Les 2 scans doivent être de la même cible.\n\nAncien: ' + ua + '\nRécent: ' + un); return; }
+
+    document.getElementById('btnCompareMP').disabled = true;
+    document.getElementById('mpProgressSection').style.display = 'block';
+    document.getElementById('mpResultSection').style.display = 'none';
+
+    const resp = await fetch('/comparison/comparaison_multiport', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json',
+                  'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content},
+        body: JSON.stringify({scan_ancien_id: a.value, scan_nouveau_id: n.value})
+    });
+    const data = await resp.json();
+    if (!data.succes) {
+        alert('Erreur : ' + data.erreur);
+        document.getElementById('btnCompareMP').disabled = false;
+        document.getElementById('mpProgressSection').style.display = 'none';
+        return;
+    }
+    localStorage.setItem(COMP_MP_KEY, data.comparaison_id);
+    ouvrirFluxMP(data.comparaison_id, false);
+}
+
+function ouvrirFluxMP(cid, reconnexion) {
+    if (evtSourceMP) evtSourceMP.close();
+    document.getElementById('btnCompareMP').disabled = true;
+    document.getElementById('mpProgressSection').style.display = 'block';
+    document.getElementById('mpDiffBody').innerHTML = '';
+    evtSourceMP = new EventSource(`/comparison/comparaison_multiport_stream/${cid}`);
+    evtSourceMP.onmessage = (e) => {
+        const ev = JSON.parse(e.data);
+        if (ev.type === 'phase') {
+            majProgressMP(ev.progression);
+        } else if (ev.type === 'finding') {
+            majProgressMP(ev.progression);
+            document.getElementById('mpResultSection').style.display = 'block';
+            ajouterLigneDiffMP(ev.item);
+        } else if (ev.type === 'done') {
+            evtSourceMP.close(); evtSourceMP = null;
+            majProgressMP(100);
+            document.getElementById('mpProgressSection').style.display = 'none';
+            document.getElementById('btnCompareMP').disabled = false;
+            afficherResultatsMP(ev.resultat);
+        } else if (ev.type === 'error') {
+            evtSourceMP.close(); evtSourceMP = null;
+            localStorage.removeItem(COMP_MP_KEY);
+            document.getElementById('mpProgressSection').style.display = 'none';
+            document.getElementById('btnCompareMP').disabled = false;
+            if (!reconnexion) alert('Erreur : ' + ev.message);
+        }
+    };
+    evtSourceMP.onerror = () => {};
+}
+
+function majProgressMP(pct) {
+    if (pct == null) return;
+    const p = Math.min(Math.round(pct), 100);
+    document.getElementById('mpProgressBar').style.width = p + '%';
+    document.getElementById('mpProgressPct').textContent = p + '%';
+}
+
+function _ligneMP(item) {
+    const [rowCls, labelCls] = diffClasses(item.type);
+    const sa = Number(item.score_ia_ancien ?? 0), sn = Number(item.score_ia_nouveau ?? 0);
+    const diff = sn - sa;
+    let evo = '0.00';
+    if (diff > 0) evo = `↑ ${diff.toFixed(2)}`; else if (diff < 0) evo = `↓ ${Math.abs(diff).toFixed(2)}`;
+    return `<tr class="${rowCls}">
+        <td><span class="vuln-label ${labelCls}">${diffLabel(item.type)}</span></td>
+        <td><strong>${item.port ?? '-'}</strong></td>
+        <td>${item.nom || '-'}</td>
+        <td>${item.cve || '-'}</td>
+        <td>${sa.toFixed(2)}</td>
+        <td>${sn.toFixed(2)}</td>
+        <td style="font-weight:700;">${evo}</td></tr>`;
+}
+
+function ajouterLigneDiffMP(item) {
+    document.getElementById('mpDiffBody').insertAdjacentHTML('beforeend', _ligneMP(item));
+}
+
+function afficherResultatsMP(data) {
+    if (!data || data.erreur) return;
+    const evo = Number(data.evolution_ia || 0);
+    const cls = evo < 0 ? 'score-improved' : 'score-degraded';
+    document.getElementById('mpScoreEvolution').innerHTML =
+        `<span class="score-badge ${cls}">Score IA: ${data.score_ia_ancien} → ${data.score_ia_nouveau} ${evo < 0 ? '↓' : '↑'}</span>`;
+    if (data.observation_ia) {
+        document.getElementById('mpObsBox').style.display = 'block';
+        document.getElementById('mpObsBox').innerHTML =
+            '<strong><i class="fas fa-robot me-2"></i>Analyse IA :</strong><br>' + data.observation_ia;
+    }
+    document.getElementById('mpCorrigees').textContent = data.nb_corrigees || 0;
+    document.getElementById('mpNouvelles').textContent = data.nb_nouvelles || 0;
+    document.getElementById('mpAggravees').textContent = data.nb_aggravees || 0;
+    document.getElementById('mpAmeliorees').textContent = data.nb_ameliorees || 0;
+    document.getElementById('mpInchangees').textContent = data.nb_inchangees || 0;
+    const html = (data.findings || []).map(_ligneMP).join('');
+    document.getElementById('mpDiffBody').innerHTML = html || '<tr><td colspan="7">Aucun résultat</td></tr>';
+    document.getElementById('mpResultSection').style.display = 'block';
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    const cid = localStorage.getItem(COMP_MP_KEY);
+    if (cid) ouvrirFluxMP(cid, true);
+});
 </script>
 </body>
 </html>

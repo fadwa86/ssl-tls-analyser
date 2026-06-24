@@ -44,7 +44,7 @@ def lancer_scan_multiport():
     scan_id = scan.id
     scans_multiport_en_cours[scan_id] = {
         'statut': 'EN_COURS', 'progression': 0, 'resultats': [],
-        'ports_ouverts': [], 'nb_ports': 1, 'evenements': []
+        'cible': cible_nom, 'ports_ouverts': [], 'nb_ports': 1, 'evenements': []
     }
 
     app = current_app._get_current_object()
@@ -109,7 +109,10 @@ def lancer_scan_multiport():
                 scan_obj.observation_ia = observation_ia or 'Aucune incohérence multi-ports détectée.'
                 scan_obj.completed_at = datetime.utcnow()
 
-                for resultat_port in resultats_tls:
+                # On persiste TOUS les ports (TLS-OK + échec-TLS + non-TLS) pour l'historique
+                # 3-catégories ; le scoring/incohérence ci-dessus reste sur resultats_tls.
+                # Les ports IGNORE (non-TLS) n'ont ni 'certificat' ni 'protocoles' -> .get gère.
+                for resultat_port in resultats_bruts['resultats']:
                     resultat_port['serveur'] = serveur   # disponible pour le PDF (pas de réseau au rendu)
                     cert = resultat_port.get('certificat', {})
 
@@ -209,19 +212,27 @@ def _serialiser_multiport(scan_id):
     scan = ScanMultiPort.query.get(scan_id)
     if not scan:
         return None
+    from agent_ia.conformite import calculer_grade_tls
+    from agent_ia.classification import est_informatif
     cible = CibleMultiPort.query.get(scan.cible_id)
     cible_nom = cible.nom if cible else 'Inconnu'
     lignes = []
+    tous_findings = []
     for r in ResultatScanMultiPort.query.filter_by(scan_id=scan_id).all():
         details = json.loads(r.details_bruts) if r.details_bruts else {}
+        findings = details.get('findings', []) or []        # dicts complets (8 clés)
+        reels = [f for f in findings if not est_informatif(f)]
+        tous_findings += [{**f, 'port': r.port} for f in findings]
         lignes.append({
             'port': r.port,
             'protocole': r.protocole,
             'logiciel': details.get('logiciel', ''),
             'classe': details.get('classe', ''),
             'statut': details.get('statut'),
+            'ouvert': details.get('ouvert', True),           # port réellement ouvert ?
             'erreur': details.get('erreur'),
-            'findings': [f.get('nom') for f in details.get('findings', [])],
+            'findings': findings,                            # dicts (nom/cve/type/severite/criticite…)
+            'vulnerable': bool(reels),                       # statut « Vulnérable » si ≥1 vraie vuln
             'starttls_utilise': r.starttls_utilise,
             'tls_supported': r.tls_supported,
             'tls_preferé': r.tls_preferé,
@@ -234,12 +245,37 @@ def _serialiser_multiport(scan_id):
             'vuln_ccs': r.vuln_ccs,
             'score_risque_port': r.score_risque_port
         })
+
+    # Agrégation dédupliquée par nom (max criticité, ports concernés) — réels d'abord.
+    agg = {}
+    for f in tous_findings:
+        k = f.get('nom')
+        if k not in agg:
+            agg[k] = {c: f.get(c) for c in ('nom', 'cve', 'type', 'severite', 'criticite')}
+            agg[k]['ports'] = []
+        if f.get('port') not in agg[k]['ports']:
+            agg[k]['ports'].append(f.get('port'))
+        if (f.get('criticite') or 0) > (agg[k].get('criticite') or 0):
+            agg[k]['criticite'] = f.get('criticite')
+    findings_agreges = sorted(
+        agg.values(),
+        key=lambda x: (x.get('severite') == 'INFORMATIF', -(x.get('criticite') or 0), x.get('nom') or ''))
+    reels_agg = [f for f in findings_agreges if f.get('severite') != 'INFORMATIF']
+    compteurs = {
+        'critique':   sum(1 for f in reels_agg if f.get('severite') == 'CRITICAL'),
+        'elevee':     sum(1 for f in reels_agg if f.get('severite') == 'HIGH'),
+        'moyenne':    sum(1 for f in reels_agg if f.get('severite') == 'MEDIUM'),
+        'informatif': sum(1 for f in findings_agreges if f.get('severite') == 'INFORMATIF'),
+    }
     return {
         'scan_id': scan_id,
         'cible': cible_nom,
         'statut': scan.statut,
         'score_global': scan.score_risque_global,
         'observation_ia': scan.observation_ia,
+        'tls_grade': calculer_grade_tls(reels_agg),         # grade A–F sur les VRAIES vulns
+        'findings_agreges': findings_agreges,
+        'compteurs': compteurs,
         'resultats': lignes
     }
 

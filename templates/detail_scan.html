@@ -32,8 +32,10 @@
         .vuln-table th { font-size: 11px; color: #8b949e; text-transform: uppercase; padding: 8px 12px; text-align: left; border-bottom: 1px solid #30363d; }
         .vuln-table td { padding: 12px; font-size: 13px; border-bottom: 1px solid #21262d; }
         .badge-critical { background: #3d0f0f; color: #f85149; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
-        .badge-high { background: #3d2a0f; color: #d29922; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
-        .badge-medium { background: #1f3a1f; color: #3fb950; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
+        .badge-high { background: #3d1a0f; color: #fb6a3c; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
+        .badge-medium { background: #3d2a0f; color: #f0883e; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
+        .badge-low { background: #2d2a12; color: #e3b341; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
+        .badge-informatif { background: #0f2333; color: #58a6ff; padding: 3px 10px; border-radius: 4px; font-size: 11px; }
         .empty-state { text-align: center; padding: 40px; color: #8b949e; }
         .empty-state i { font-size: 48px; margin-bottom: 12px; display: block; }
         /* Mode clair */
@@ -174,8 +176,12 @@ function toggleTheme() {
                             <span class="badge-critical">CRITICAL</span>
                         {% elif vuln.severite == 'HIGH' %}
                             <span class="badge-high">HIGH</span>
+                        {% elif vuln.severite == 'MEDIUM' %}
+                            <span class="badge-medium">MEDIUM</span>
+                        {% elif vuln.severite == 'INFORMATIF' %}
+                            <span class="badge-informatif">INFO</span>
                         {% else %}
-                            <span class="badge-medium">{{ vuln.severite }}</span>
+                            <span class="badge-low">{{ vuln.severite }}</span>
                         {% endif %}
                     </td>
                     <td style="color:#58a6ff">{{ vuln.cvss }}</td>

@@ -178,7 +178,11 @@ body.light-mode .vuln-table th {
                         {% endif %}
                     </td>
                     <td style="font-weight:bold">{{ '%.2f'|format(s.score) if s.score is not none else '—' }}/10</td>
-                    <td style="color:#8b949e">{{ s.nb_ports }}</td>
+                    <td style="color:#8b949e">
+                        {{ s.nb_ports }} TLS
+                        {% if s.nb_ports_nontls %} · {{ s.nb_ports_nontls }} ouvert(s) sans TLS{% endif %}
+                        {% if s.nb_ports_fermes %} · {{ s.nb_ports_fermes }} fermé(s){% endif %}
+                    </td>
                     <td style="color:#f85149; font-weight:bold">{{ s.nb_findings }}</td>
                     <td><a href="/historique/multiport/{{ s.id }}" class="btn-detail">Voir détails</a></td>
                 </tr>
