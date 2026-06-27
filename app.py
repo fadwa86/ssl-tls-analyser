@@ -1,6 +1,5 @@
 import os
 import sys
-import ssl
 # Console Windows en cp1252 par défaut : un print() contenant '→', '✓', etc. fait
 # planter le thread de scan (UnicodeEncodeError). On force la sortie en UTF-8.
 for _flux in (sys.stdout, sys.stderr):
@@ -79,12 +78,20 @@ if __name__ == '__main__':
         from generate_cert import generer_cert
         generer_cert(cert, key)
 
-    # Contexte SSL explicite : équivalent à ce que Werkzeug construit depuis (cert, key)
-    # mais immunise contre une régression de la conversion tuple -> SSLContext.
-    ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    ssl_ctx.load_cert_chain(cert, key)
+    # Serveur WSGI Cheroot (celui de CherryPy) en HTTPS uniquement. Le serveur de dev
+    # Werkzeug fait le handshake TLS dans sa boucle d'accept SANS timeout : une connexion
+    # de navigateur qui stalle le handshake (preconnect, interstitiel auto-signé) fige tout
+    # le serveur indéfiniment. Cheroot accepte d'abord le TCP puis applique server.timeout
+    # au handshake -> une poignée de main bloquée se résorbe au lieu de tout geler. Modèle
+    # threadé identique (chaque flux SSE garde un thread). HTTP est volontairement absent
+    # (cookies de session Secure). Pas de rechargement auto : relancer après modification.
+    from cheroot.wsgi import Server as ServeurWSGI
+    from cheroot.ssl.builtin import BuiltinSSLAdapter
 
-    # threaded=True : chaque connexion SSE garde un thread ouvert ; sans cela un flux
-    # bloquerait toutes les autres requêtes sur le serveur de dev.
-    app.run(host='127.0.0.1', port=5000, ssl_context=ssl_ctx,
-            debug=True, threaded=True)
+    serveur = ServeurWSGI(('127.0.0.1', 5000), app, numthreads=16)
+    serveur.ssl_adapter = BuiltinSSLAdapter(cert, key)
+    print('HTTPS : https://127.0.0.1:5000  (Cheroot, Ctrl+C pour arrêter)')
+    try:
+        serveur.start()
+    except KeyboardInterrupt:
+        serveur.stop()

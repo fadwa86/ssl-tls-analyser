@@ -11,7 +11,7 @@ rapport PDF avec conformité PCI-DSS v4.0 / NIST SP 800-52.
 ```bash
 # Dépendances (installées dans le .venv du projet)
 pip install flask flask-sqlalchemy flask-bcrypt flask-wtf sslyze requests urllib3 \
-            numpy scikit-learn reportlab pymysql weasyprint cryptography
+            numpy scikit-learn reportlab pymysql weasyprint cryptography cheroot
 # Dépendances de test :
 pip install -r requirements-dev.txt
 ```
@@ -64,7 +64,9 @@ Get-ChildItem Cert:\CurrentUser\Root | Where-Object { $_.Subject -match 'TLS Ana
 ```bash
 python app.py
 ```
-Le serveur écoute sur **https://127.0.0.1:5000** (et **https://localhost:5000**).
+Le serveur écoute sur **https://127.0.0.1:5000** (et **https://localhost:5000**). Il est servi
+par **Cheroot** (serveur WSGI de production) en **HTTPS uniquement** — pas de HTTP, pas de
+rechargement automatique (relancer après modification).
 
 ### Étape 4 — Ouvrir dans le navigateur
 1. **Fermer complètement** le navigateur puis le rouvrir (il relit le magasin racine au démarrage).
