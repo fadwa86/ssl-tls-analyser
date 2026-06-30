@@ -517,7 +517,8 @@
                 majProgress(100);
                 document.getElementById('progressSection').style.display = 'none';
                 document.getElementById('btnScan').disabled = false;
-                afficherResultats(ev.resultat);   // rendu direct depuis le payload ; garde SCAN_KEY
+                afficherResultats(ev.resultat);   // rendu direct depuis le payload
+                localStorage.removeItem(SCAN_KEY); // scan terminé -> page vide au prochain reload
             } else if (ev.type === 'error') {
                 evtSource.close(); evtSource = null;
                 localStorage.removeItem(SCAN_KEY);
@@ -667,16 +668,18 @@
     }
 
     // ── Reprise au chargement ───────────────────────────────────────────────────
-    // Si un scan était en cours (ou vient de finir), on s'y reconnecte au lieu de
-    // repartir d'une page vide.
-    window.addEventListener('DOMContentLoaded', () => {
+    // On ne reprend l'affichage que si le scan est ENCORE en cours ; un scan terminé
+    // laisse la page vide (pas de réaffichage des résultats au reload).
+    window.addEventListener('DOMContentLoaded', async () => {
         const saved = localStorage.getItem(SCAN_KEY);
         if (!saved) return;
         try {
             const {scanId, cible} = JSON.parse(saved);
             if (!scanId) return;
             if (cible) document.getElementById('cible').value = cible;   // hôte pré-rempli
-            ouvrirFlux(scanId, true);
+            const st = await (await fetch(`/multiport/scan_multiport_status/${scanId}`)).json();
+            if (st.statut === 'EN_COURS') ouvrirFlux(scanId, true);      // en cours -> reprise du flux
+            else localStorage.removeItem(SCAN_KEY);                      // terminé/inconnu -> page vide
         } catch (e) {
             localStorage.removeItem(SCAN_KEY);
         }

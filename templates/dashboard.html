@@ -109,22 +109,22 @@
     <div class="cards">
         <div class="card card-critical">
             <div class="card-label">Vulnérabilités critiques</div>
-            <div class="card-value" id="nbCritique">—</div>
+            <div class="card-value" id="nbCritique">0</div>
         </div>
         <div class="card card-high">
             <div class="card-label">Vulnérabilités élevées</div>
-            <div class="card-value" id="nbHigh">—</div>
+            <div class="card-value" id="nbHigh">0</div>
         </div>
         <div class="card card-medium">
             <div class="card-label">Vulnérabilités moyennes</div>
-            <div class="card-value" id="nbMedium">—</div>
+            <div class="card-value" id="nbMedium">0</div>
         </div>
         <div class="card" style="border-color:#1f6feb;">
             <div class="card-label">Informatif</div>
-            <div class="card-value" id="nbInformatif" style="color:#58a6ff;">—</div>
+            <div class="card-value" id="nbInformatif" style="color:#58a6ff;">0</div>
         </div>
         <div class="card card-score">
-            <div class="card-label">Score TLS Global</div>
+            <div class="card-label">Grade TLS Global</div>
             <div class="card-value" id="scoreTLS">—</div>
             <div class="card-sub">Objectif : A (PCI-DSS)</div>
         </div>
@@ -214,9 +214,14 @@ function lancerScan() {
     // Reset cartes
     document.getElementById('scoreTLS').textContent   = '...';
     document.getElementById('expCert').textContent    = '...';
-    document.getElementById('nbCritique').textContent = '...';
-    document.getElementById('nbHigh').textContent     = '...';
-    document.getElementById('nbMedium').textContent   = '...';
+    document.getElementById('nbCritique').textContent = '0';
+    document.getElementById('nbHigh').textContent     = '0';
+    document.getElementById('nbMedium').textContent   = '0';
+    document.getElementById('nbInformatif').textContent = '0';
+    // Efface les résultats du scan précédent (table + priorisation) avant le nouveau scan,
+    // sinon les anciens findings restent affichés jusqu'à l'arrivée des nouveaux.
+    document.getElementById('tableContent').innerHTML =
+        '<div class="empty-state"><i class="bi bi-search"></i> Analyse en cours…</div>';
     majPhase('Démarrage du scan…', 0);
     setScanningUI(true);
 
@@ -265,7 +270,8 @@ function ouvrirFlux(scanId, reconnexion) {
             evtSource.close(); evtSource = null;
             const r = ev.resultat || {};
             afficherResultats(r.vulnerabilites || [], r.score_tls, r.expiration);
-            setScanningUI(false);            // on garde SCAN_KEY -> ré-affichage au reload
+            setScanningUI(false);
+            localStorage.removeItem(SCAN_KEY);   // scan terminé -> page vide au prochain reload
         } else if (ev.type === 'error') {
             evtSource.close(); evtSource = null;
             localStorage.removeItem(SCAN_KEY);
@@ -318,13 +324,20 @@ function afficherFindingsLive(findings) {
     document.getElementById('tableContent').innerHTML = html;
 }
 
-// Reprise au chargement : si un scan était en cours (ou vient de finir), on s'y
-// reconnecte au lieu de repartir d'une page vide.
-window.addEventListener('DOMContentLoaded', () => {
+// Reprise au chargement : on ne réaffiche un scan que s'il est ENCORE en cours.
+// Un scan terminé laisse la page vide (pas de réaffichage des résultats au reload).
+window.addEventListener('DOMContentLoaded', async () => {
     const c = localStorage.getItem('scan_simple_cible');
     if (c) document.getElementById('cibleInput').value = c;   // hôte pré-rempli
     const sid = localStorage.getItem(SCAN_KEY);
-    if (sid) ouvrirFlux(sid, true);
+    if (!sid) return;                                         // aucun scan mémorisé -> page vide
+    try {
+        const st = await (await fetch(`/scan_status/${sid}`)).json();
+        if (st.statut === 'EN_COURS') ouvrirFlux(sid, true);  // en cours -> reprise du flux SSE
+        else localStorage.removeItem(SCAN_KEY);               // terminé/inconnu -> on oublie, page vide
+    } catch (e) {
+        localStorage.removeItem(SCAN_KEY);
+    }
 });
 
 // Badge de sévérité (INFORMATIF en gris « INFO »).
@@ -339,10 +352,10 @@ function badgeVulnHTML(v) {
 function reinitCartes() {
     document.getElementById('scoreTLS').textContent   = '—';
     document.getElementById('expCert').textContent    = '—';
-    document.getElementById('nbCritique').textContent = '—';
-    document.getElementById('nbHigh').textContent     = '—';
-    document.getElementById('nbMedium').textContent   = '—';
-    document.getElementById('nbInformatif').textContent = '—';
+    document.getElementById('nbCritique').textContent = '0';
+    document.getElementById('nbHigh').textContent     = '0';
+    document.getElementById('nbMedium').textContent   = '0';
+    document.getElementById('nbInformatif').textContent = '0';
 }
 
 // ── Afficher résultats ────────────────────────────────────────────────────
@@ -358,7 +371,7 @@ function afficherResultats(vulns, scoreTLS, expiration) {
     document.getElementById('nbMedium').textContent   = medium;
     document.getElementById('nbInformatif').textContent = informatif;
 
-    // Score TLS global
+    // Grade TLS global
     const scoreEl = document.getElementById('scoreTLS');
     scoreEl.textContent = scoreTLS || '—';
     if      (scoreTLS === 'A') scoreEl.style.color = '#3fb950';

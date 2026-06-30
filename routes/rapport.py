@@ -1,12 +1,6 @@
-import os
-# WeasyPrint (Windows) : indiquer où trouver les DLL GTK si MSYS2 est installé,
-# AVANT tout import de weasyprint. Sans effet ailleurs.
-_gtk_dir = r'C:\msys64\mingw64\bin'
-if os.path.isdir(_gtk_dir):
-    os.environ.setdefault('WEASYPRINT_DLL_DIRECTORIES', _gtk_dir)
-
 import hashlib
 import re
+from xml.sax.saxutils import escape
 from flask import Blueprint, render_template, session, redirect, url_for, request, send_file
 from models.models import db, Scan, Cible, ResultatScan, Administrateur
 from agent_ia.agent import analyser_resultats
@@ -14,7 +8,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib.colors import HexColor, white
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, PageBreak
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import json
 import io
@@ -363,7 +357,7 @@ def rapport():
         scan.date      = scan.dateDebut.strftime('%d/%m/%Y %H:%M')
         scans.append(scan)
 
-    # Scans multi-ports terminés (rapport PCI-DSS/NIST WeasyPrint).
+    # Scans multi-ports terminés (rapport PCI-DSS/NIST ReportLab).
     from models.models import ScanMultiPort, CibleMultiPort
     scans_mp = []
     for s, c in (db.session.query(ScanMultiPort, CibleMultiPort)
@@ -409,8 +403,8 @@ def generer_rapport(scan_id):
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# Rapport PCI-DSS/NIST multi-ports (WeasyPrint). Le rapport mono-port ReportLab
-# ci-dessus reste inchangé — il fonctionne même si WeasyPrint n'est pas installé.
+# Rapport PCI-DSS/NIST multi-ports (ReportLab, sans dépendance native). Même moteur
+# que le rapport mono-port ci-dessus ; generer_pdf_multiport construit le PDF.
 # ════════════════════════════════════════════════════════════════════════════
 
 def _cle_remediation(protocole, logiciel, type_serveur):
@@ -431,14 +425,219 @@ def _attacher_remediation(finding, protocole, logiciel, type_serveur):
     finding['remediation'] = config['solution']
 
 
+def _couleur_grade(grade):
+    """Couleur du grade A–F (mêmes teintes que multiport_scan.html::gradeColor)."""
+    return {'A': VERT, 'B': HexColor('#58a6ff'), 'C': ORANGE}.get(grade, ROUGE)
+
+
+def generer_pdf_multiport(cible, date_scan, date_generation, admin, grade, score_ia,
+                          conformite, observation_ia, serveur, nb_critical, nb_high,
+                          nb_medium, nb_total, nb_informatif, ports, historique, sha256,
+                          reco_principale):
+    """Rapport PCI-DSS/NIST multi-ports en ReportLab (même format que le mono-port, sans
+    dépendance native). Tout texte dynamique est échappé avant un Paragraph (évite que des
+    caractères < & dans un DN de certificat ou une commande de remédiation cassent le rendu)."""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.6*cm, leftMargin=1.6*cm,
+                            topMargin=1.8*cm, bottomMargin=1.8*cm)
+    styles = getSampleStyleSheet()
+    e = []
+
+    style_titre      = ParagraphStyle('mtitre', parent=styles['Title'],    fontSize=26, textColor=BLEU,              alignment=TA_CENTER, spaceAfter=10)
+    style_sous_titre = ParagraphStyle('msous',  parent=styles['Normal'],   fontSize=13, textColor=GRIS_TEXTE,        alignment=TA_CENTER, spaceAfter=20)
+    style_h1         = ParagraphStyle('mh1',    parent=styles['Heading1'], fontSize=15, textColor=BLEU,              spaceAfter=10, spaceBefore=18)
+    style_h2         = ParagraphStyle('mh2',    parent=styles['Heading2'], fontSize=12, textColor=HexColor('#c9d1d9'), spaceAfter=6, spaceBefore=12)
+    style_normal     = ParagraphStyle('mnormal',parent=styles['Normal'],   fontSize=10, textColor=HexColor('#c9d1d9'), spaceAfter=6)
+    style_cell       = ParagraphStyle('mcell',  parent=styles['Normal'],   fontSize=9,  textColor=HexColor('#c9d1d9'))
+    style_small      = ParagraphStyle('msmall', parent=styles['Normal'],   fontSize=8,  textColor=GRIS_TEXTE)
+    style_footer     = ParagraphStyle('mfooter',parent=styles['Normal'],   fontSize=8,  textColor=GRIS_TEXTE,        alignment=TA_CENTER)
+
+    def P(txt, style=style_cell):
+        return Paragraph(escape('' if txt is None else str(txt)), style)
+
+    # ===== PAGE DE GARDE ======================================================
+    e.append(Spacer(1, 1.2*cm))
+    e.append(Paragraph("SSL/TLS Analyser", style_titre))
+    e.append(Paragraph("Rapport d'analyse de securite TLS/SSL — multi-ports", style_sous_titre))
+    e.append(HRFlowable(width="100%", thickness=1.5, color=BLEU))
+    e.append(Spacer(1, 0.6*cm))
+
+    garde = [
+        ['Cible scannee',   cible],
+        ['Date du scan',    date_scan],
+        ['Genere par',      f"{admin.prenom} {admin.nom} ({admin.role or 'Analyste de securite'})"],
+        ['Serveur detecte', f"{(serveur.get('type') or 'inconnu').upper()} — {serveur.get('version') or 'Non detecte'}"],
+    ]
+    t_garde = Table([[k, P(v)] for k, v in garde], colWidths=[5*cm, 12*cm])
+    t_garde.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), HexColor('#21262d')),
+        ('TEXTCOLOR',  (0, 0), (0, -1), GRIS_TEXTE),
+        ('FONTNAME',   (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('BACKGROUND', (1, 0), (1, -1), GRIS_FONCE),
+        ('GRID',       (0, 0), (-1, -1), 0.5, GRIS_MOYEN),
+        ('PADDING',    (0, 0), (-1, -1), 8),
+        ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    e.append(t_garde)
+    e.append(Spacer(1, 0.6*cm))
+    e.append(Paragraph("CONFIDENTIEL", ParagraphStyle('mconf', parent=styles['Normal'],
+             fontSize=12, textColor=ROUGE, alignment=TA_CENTER)))
+    e.append(PageBreak())
+
+    # ===== 1. RÉSUMÉ EXÉCUTIF =================================================
+    e.append(Paragraph("1. Resume executif", style_h1))
+    e.append(HRFlowable(width="100%", thickness=0.5, color=GRIS_MOYEN))
+    e.append(Spacer(1, 0.3*cm))
+
+    grade_para = Paragraph(f"<b>{escape(str(grade))}</b>", ParagraphStyle('mgrade',
+                 parent=styles['Normal'], fontSize=40, leading=46,
+                 textColor=_couleur_grade(grade), alignment=TA_CENTER))
+    pci  = 'CONFORME' if conformite.get('pci_dss') else 'NON CONFORME'
+    nist = 'CONFORME' if conformite.get('nist') else 'NON CONFORME'
+    infos = [
+        Paragraph("Note TLS globale", style_small),
+        Paragraph("Score IA de risque (Random Forest)", style_small),
+        Paragraph(f"<b>{(score_ia or 0):.2f} / 10</b>", style_normal),
+        Spacer(1, 0.15*cm),
+        Paragraph(f"PCI-DSS v4.0 : <b>{pci}</b>", style_normal),
+        Paragraph(f"NIST SP 800-52 : <b>{nist}</b>", style_normal),
+    ]
+    t_res = Table([[grade_para, infos]], colWidths=[4*cm, 13*cm])
+    t_res.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), GRIS_FONCE),
+        ('GRID',       (0, 0), (-1, -1), 0.5, GRIS_MOYEN),
+        ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
+        ('PADDING',    (0, 0), (-1, -1), 8),
+    ]))
+    e.append(t_res)
+    e.append(Spacer(1, 0.4*cm))
+
+    counts = [['Critiques', 'Elevees', 'Moyennes', 'Total findings'],
+              [str(nb_critical), str(nb_high), str(nb_medium), str(nb_total)]]
+    t_counts = Table(counts, colWidths=[4.25*cm]*4)
+    t_counts.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), BLEU), ('TEXTCOLOR', (0, 0), (-1, 0), BLANC),
+        ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, 1), (-1, 1), GRIS_FONCE), ('TEXTCOLOR', (0, 1), (-1, 1), HexColor('#c9d1d9')),
+        ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),  ('GRID', (0, 0), (-1, -1), 0.5, GRIS_MOYEN),
+        ('PADDING',    (0, 0), (-1, -1), 6),         ('FONTSIZE', (0, 0), (-1, -1), 10),
+    ]))
+    e.append(t_counts)
+    e.append(Spacer(1, 0.3*cm))
+    e.append(Paragraph(f"<b>Recommandation principale :</b> {escape(str(reco_principale))}", style_normal))
+    if observation_ia:
+        e.append(Paragraph("Observation IA (incoherence multi-ports)", style_h2))
+        e.append(Paragraph(escape(str(observation_ia)), style_small))
+    e.append(Spacer(1, 0.4*cm))
+
+    # ===== 2. DÉTAIL PAR PORT =================================================
+    e.append(Paragraph("2. Detail par port / service", style_h1))
+    e.append(HRFlowable(width="100%", thickness=0.5, color=GRIS_MOYEN))
+    e.append(Spacer(1, 0.3*cm))
+    if not ports:
+        e.append(Paragraph("Aucun service TLS vulnerable detecte — configuration saine.", style_normal))
+    for p in ports:
+        titre = f"Port {p.get('port')} — {p.get('protocole') or ''}"
+        if p.get('logiciel'):
+            titre += f" ({p['logiciel']})"
+        titre += f" — score IA {(p.get('score') or 0):.2f}/10"
+        e.append(Paragraph(escape(titre), style_h2))
+
+        ciphers = p.get('ciphers') or []
+        if ciphers:
+            cipher_txt = ', '.join(ciphers[:8]) + (f" … (+{len(ciphers) - 8})" if len(ciphers) > 8 else '')
+        else:
+            cipher_txt = 'N/A'
+        cert = [
+            ['Certificat (CN)',          P(p.get('cert_cn') or 'N/A')],
+            ['Emetteur',                 P(p.get('cert_issuer') or 'N/A')],
+            ['Algorithme de signature',  P(p.get('cert_algo') or 'N/A')],
+            ['Validite restante',        P(p.get('cert_duree') or 'N/A')],
+            ['Versions TLS',             P(f"{p.get('tls') or 'N/A'} (preferee : {p.get('tls_prefere') or 'N/A'})")],
+            ['Suites de chiffrement',    P(cipher_txt)],
+        ]
+        t_cert = Table(cert, colWidths=[4.5*cm, 12.5*cm])
+        t_cert.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), HexColor('#21262d')), ('TEXTCOLOR', (0, 0), (0, -1), GRIS_TEXTE),
+            ('FONTNAME',   (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('BACKGROUND', (1, 0), (1, -1), GRIS_FONCE),
+            ('GRID',       (0, 0), (-1, -1), 0.5, GRIS_MOYEN), ('PADDING', (0, 0), (-1, -1), 6),
+            ('VALIGN',     (0, 0), (-1, -1), 'TOP'), ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ]))
+        e.append(t_cert)
+
+        findings = p.get('findings') or []
+        if findings:
+            data = [['Vulnerabilite', 'CVE', 'Severite', 'CVSS', 'EPSS', 'Score IA']]
+            sev_rows, span_rows = {}, []
+            for v in findings:
+                data.append([P(v.get('nom')), P(v.get('cve') or '-'), v.get('severite') or '-',
+                             str(v.get('cvss', '-')), f"{(v.get('epss') or 0):.2f}", str(v.get('criticite', '-'))])
+                sev_rows[len(data) - 1] = v.get('severite')
+                if v.get('remediation'):
+                    remed = (f"<b>Remediation</b> — {escape(str(v.get('etape') or ''))}<br/>"
+                             f"{escape(str(v['remediation']))}")
+                    data.append([Paragraph(remed, style_small), '', '', '', '', ''])
+                    span_rows.append(len(data) - 1)
+            t_find = Table(data, colWidths=[4.6*cm, 2.6*cm, 2.2*cm, 1.6*cm, 1.6*cm, 1.8*cm])
+            ts = [
+                ('BACKGROUND', (0, 0), (-1, 0), BLEU), ('TEXTCOLOR', (0, 0), (-1, 0), BLANC),
+                ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BACKGROUND', (0, 1), (-1, -1), GRIS_FONCE), ('TEXTCOLOR', (0, 1), (-1, -1), HexColor('#c9d1d9')),
+                ('GRID',       (0, 0), (-1, -1), 0.5, GRIS_MOYEN), ('PADDING', (0, 0), (-1, -1), 5),
+                ('FONTSIZE',   (0, 0), (-1, -1), 8), ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('ALIGN',      (2, 1), (-1, -1), 'CENTER'),
+            ]
+            for r in span_rows:
+                ts.append(('SPAN', (0, r), (-1, r)))
+                ts.append(('BACKGROUND', (0, r), (-1, r), HexColor('#21262d')))
+            for r, sev in sev_rows.items():
+                col = ROUGE if sev in ('CRITICAL', 'HIGH') else ORANGE if sev == 'MEDIUM' else VERT
+                ts.append(('TEXTCOLOR', (2, r), (2, r), col))
+            t_find.setStyle(TableStyle(ts))
+            e.append(t_find)
+        else:
+            e.append(Paragraph("Aucune vulnerabilite detectee sur ce port.", style_small))
+        e.append(Spacer(1, 0.4*cm))
+
+    # ===== 3. HISTORIQUE & INTÉGRITÉ =========================================
+    e.append(Paragraph("3. Historique &amp; integrite", style_h1))
+    e.append(HRFlowable(width="100%", thickness=0.5, color=GRIS_MOYEN))
+    e.append(Spacer(1, 0.3*cm))
+    if historique:
+        hist = [['Scan', 'Date', 'Score IA global']]
+        for h in historique:
+            hist.append([f"#{h.get('id')}", h.get('date') or '-', f"{(h.get('score') or 0):.2f}"])
+        t_hist = Table(hist, colWidths=[3*cm, 7*cm, 7*cm])
+        t_hist.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), BLEU), ('TEXTCOLOR', (0, 0), (-1, 0), BLANC),
+            ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, 1), (-1, -1), GRIS_FONCE), ('TEXTCOLOR', (0, 1), (-1, -1), HexColor('#c9d1d9')),
+            ('GRID',       (0, 0), (-1, -1), 0.5, GRIS_MOYEN), ('PADDING', (0, 0), (-1, -1), 6),
+            ('FONTSIZE',   (0, 0), (-1, -1), 9),
+        ]))
+        e.append(t_hist)
+    else:
+        e.append(Paragraph("Aucun scan anterieur sur cette cible.", style_small))
+
+    e.append(Spacer(1, 0.6*cm))
+    e.append(HRFlowable(width="100%", thickness=0.5, color=GRIS_MOYEN))
+    e.append(Spacer(1, 0.2*cm))
+    e.append(Paragraph(
+        f"SSL/TLS Analyser — Rapport genere le {date_generation} par "
+        f"{admin.prenom} {admin.nom} — Confidentiel", style_footer))
+    e.append(Paragraph(f"Empreinte d'integrite SHA-256 : {sha256}",
+             ParagraphStyle('msha', parent=style_footer, fontSize=7)))
+
+    doc.build(e)
+    buffer.seek(0)
+    return buffer
+
+
 @rapport_bp.route('/rapport/multiport/generer/<int:scan_id>')
 def generer_rapport_multiport(scan_id):
     if 'admin_id' not in session:
         return redirect(url_for('auth.login'))
-    try:
-        from weasyprint import HTML
-    except (ImportError, OSError) as e:
-        return (f"WeasyPrint indisponible ({e}). Installer MSYS2 + pango — voir CLAUDE.md.", 500)
 
     from models.models import ScanMultiPort, ResultatScanMultiPort, CibleMultiPort
     from agent_ia.conformite import calculer_grade_tls, evaluer_conformite, calculer_duree_restante
@@ -508,7 +707,7 @@ def generer_rapport_multiport(scan_id):
     canonical = f"{scan_id}|{cible_nom}|{date_scan}|" + json.dumps(all_findings, sort_keys=True, ensure_ascii=False)
     sha256 = hashlib.sha256(canonical.encode('utf-8')).hexdigest()
 
-    html = render_template('rapport_pdf.html',
+    buffer = generer_pdf_multiport(
         cible=cible_nom, date_scan=date_scan,
         date_generation=datetime.now().strftime('%d/%m/%Y %H:%M'),
         admin=admin, grade=grade, score_ia=scan.score_risque_global, conformite=conformite,
@@ -518,7 +717,6 @@ def generer_rapport_multiport(scan_id):
         nb_informatif=nb('INFORMATIF'),
         ports=ports_vue, historique=historique, sha256=sha256, reco_principale=reco_principale)
 
-    pdf      = HTML(string=html).write_pdf()
     safe     = re.sub(r'[<>:"/\\|?*]', '_', cible_nom)
     filename = f"rapport_multiport_{scan_id}_{safe}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
-    return send_file(io.BytesIO(pdf), as_attachment=True, download_name=filename, mimetype='application/pdf')
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')

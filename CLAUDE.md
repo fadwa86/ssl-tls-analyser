@@ -13,24 +13,22 @@ code consistent with that.
 
 ```bash
 # Install deps (no requirements.txt exists — these are the actual imports)
-pip install flask flask-sqlalchemy flask-bcrypt flask-wtf sslyze requests urllib3 numpy scikit-learn reportlab pymysql weasyprint
+pip install flask flask-sqlalchemy flask-bcrypt flask-wtf sslyze requests urllib3 numpy scikit-learn reportlab pymysql cheroot
 # flask-wtf provides CSRF protection (CSRFProtect in app.py): POST forms carry
 # {{ csrf_token() }}; JSON fetch() calls send the X-CSRFToken header (read from the
 # <meta name="csrf-token"> tag). SSE/EventSource (GET) endpoints are unaffected.
 # SECRET_KEY (session + CSRF signing) is read from the SECRET_KEY env var, falling back
 # to a dev default — set a random value in production.
-# WeasyPrint (rapport PCI-DSS multi-ports) needs GTK on Windows:
-#   1) install MSYS2 (https://www.msys2.org)  2) MSYS2 shell: pacman -S mingw-w64-x86_64-pango
-#   3) verify: python -m weasyprint --info   (routes/rapport.py auto-sets WEASYPRINT_DLL_DIRECTORIES if C:\msys64 exists)
-# The single-port ReportLab report still works without WeasyPrint.
+# Reports (single + multi-port PDF) use ReportLab — pure Python, no native/GTK dependency.
 
-# Run (dev server, debug=True, https://127.0.0.1:5000)
+# Run (Cheroot WSGI server, HTTP, http://127.0.0.1:5000)
 python app.py
-# HTTPS via self-signed cert, auto-generated on first launch (generate_cert.py -> cert.pem
-# + key.pem, gitignored). The browser warns about the self-signed cert on first visit —
-# click "Advanced -> proceed", that's expected. HTTPS-only: plain http:// won't connect, and
-# because session cookies are now Secure, an HTTP request would not establish a session even
-# if it did. To regenerate the cert: delete cert.pem + key.pem and relaunch.
+# Served by Cheroot (CherryPy's production WSGI server), NOT Werkzeug's dev server. We keep
+# Cheroot for its threaded model (each SSE stream holds one worker thread); trade-off: no debug
+# auto-reloader — restart after editing. Plain HTTP (no TLS handshake, no certificate): the app
+# binds http://127.0.0.1:5000 and session cookies are not Secure, so they work over HTTP.
+# CSRF: flask-wtf's SSL-strict Referer check only applies over HTTPS, so HTTP form POSTs (and a
+# raw curl POST) need no --referer.
 # CORS is intentionally absent: the app is same-origin (server-rendered Jinja + relative
 # fetch). Add flask-cors only if a separate-origin frontend is ever introduced.
 

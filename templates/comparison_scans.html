@@ -326,10 +326,6 @@
                         <div style="font-size:1.6rem; font-weight:700;" id="nbCorrigees">0</div><div>Corrigées</div></div></div>
                     <div class="col"><div class="stats-box new-box">
                         <div style="font-size:1.6rem; font-weight:700;" id="nbNouvelles">0</div><div>Nouvelles</div></div></div>
-                    <div class="col"><div class="stats-box aggrave-box">
-                        <div style="font-size:1.6rem; font-weight:700;" id="nbAggravees">0</div><div>Aggravées</div></div></div>
-                    <div class="col"><div class="stats-box ameliore-box">
-                        <div style="font-size:1.6rem; font-weight:700;" id="nbAmeliorees">0</div><div>Améliorées</div></div></div>
                     <div class="col"><div class="stats-box unchanged-box">
                         <div style="font-size:1.6rem; font-weight:700;" id="nbInchangees">0</div><div>Inchangées</div></div></div>
                 </div>
@@ -365,7 +361,7 @@
                         <select class="form-select" id="mpAncien">
                             <option value="">-- Choisir un scan --</option>
                             {% for s in scans_mp %}
-                            <option value="{{ s.id }}" data-url="{{ s.cible_normale }}">{{ s.cible }} — {{ s.date }}</option>
+                            <option value="{{ s.id }}" data-url="{{ s.cible_normale }}" data-ports="{{ s.ports|join(',') }}">{{ s.cible }} — {{ s.date }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -374,7 +370,7 @@
                         <select class="form-select" id="mpRecent">
                             <option value="">-- Choisir un scan --</option>
                             {% for s in scans_mp %}
-                            <option value="{{ s.id }}" data-url="{{ s.cible_normale }}">{{ s.cible }} — {{ s.date }}</option>
+                            <option value="{{ s.id }}" data-url="{{ s.cible_normale }}" data-ports="{{ s.ports|join(',') }}">{{ s.cible }} — {{ s.date }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -400,8 +396,6 @@
                 <div class="row text-center mb-4 g-2">
                     <div class="col"><div class="stats-box fixed-box"><div style="font-size:1.6rem;font-weight:700;" id="mpCorrigees">0</div><div>Corrigées</div></div></div>
                     <div class="col"><div class="stats-box new-box"><div style="font-size:1.6rem;font-weight:700;" id="mpNouvelles">0</div><div>Nouvelles</div></div></div>
-                    <div class="col"><div class="stats-box aggrave-box"><div style="font-size:1.6rem;font-weight:700;" id="mpAggravees">0</div><div>Aggravées</div></div></div>
-                    <div class="col"><div class="stats-box ameliore-box"><div style="font-size:1.6rem;font-weight:700;" id="mpAmeliorees">0</div><div>Améliorées</div></div></div>
                     <div class="col"><div class="stats-box unchanged-box"><div style="font-size:1.6rem;font-weight:700;" id="mpInchangees">0</div><div>Inchangées</div></div></div>
                 </div>
                 <div style="overflow-x:auto;">
@@ -590,8 +584,6 @@ function afficherResultats(data) {
     document.getElementById('nbCorrigees').textContent = data.nb_corrigees || 0;
     document.getElementById('nbNouvelles').textContent = data.nb_nouvelles || 0;
     document.getElementById('nbInchangees').textContent = data.nb_inchangees || 0;
-    document.getElementById('nbAggravees').textContent = data.nb_aggravees || 0;
-    document.getElementById('nbAmeliorees').textContent = data.nb_ameliorees || 0;
 
     let html = '';
     (data.vulnerabilites || []).forEach(v => {
@@ -621,6 +613,26 @@ function afficherResultats(data) {
 // ════════════════ Comparaison MULTI-PORT ════════════════
 const COMP_MP_KEY = 'comparaison_mp_en_cours';
 let evtSourceMP = null;
+
+// Filtre : quand on choisit le scan « ancien », ne laisser sélectionnable en « récent »
+// que les scans de la même cible ET portant sur exactement le même ensemble de ports.
+(function () {
+    const ancien = document.getElementById('mpAncien');
+    const recent = document.getElementById('mpRecent');
+    if (!ancien || !recent) return;
+    ancien.addEventListener('change', function () {
+        const opt   = ancien.options[ancien.selectedIndex];
+        const ports = opt ? (opt.getAttribute('data-ports') || '') : '';
+        const url   = opt ? (opt.getAttribute('data-url')   || '') : '';
+        recent.value = '';  // réinitialise : l'ancienne sélection peut être devenue invalide
+        for (const o of recent.options) {
+            if (!o.value) { o.hidden = false; continue; }  // garde le placeholder
+            if (!ancien.value) { o.hidden = false; continue; }  // ancien vidé → tout réafficher
+            o.hidden = !(o.getAttribute('data-ports') === ports &&
+                         o.getAttribute('data-url')   === url);
+        }
+    });
+})();
 
 async function lancerComparaisonMP() {
     const a = document.getElementById('mpAncien'), n = document.getElementById('mpRecent');
@@ -722,8 +734,6 @@ function afficherResultatsMP(data) {
     }
     document.getElementById('mpCorrigees').textContent = data.nb_corrigees || 0;
     document.getElementById('mpNouvelles').textContent = data.nb_nouvelles || 0;
-    document.getElementById('mpAggravees').textContent = data.nb_aggravees || 0;
-    document.getElementById('mpAmeliorees').textContent = data.nb_ameliorees || 0;
     document.getElementById('mpInchangees').textContent = data.nb_inchangees || 0;
     const html = (data.findings || []).map(_ligneMP).join('');
     document.getElementById('mpDiffBody').innerHTML = html || '<tr><td colspan="7">Aucun résultat</td></tr>';

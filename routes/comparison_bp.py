@@ -19,7 +19,7 @@ def normaliser_url(url):
         return ''
     url = url.strip().lower()
     if not url.startswith(('http://', 'https://')):
-        url = 'https://' + url
+        url = 'http://' + url
     parsed = urlparse(url)
     host = parsed.netloc
     if host.startswith('www.'):
@@ -64,14 +64,18 @@ def comparaison_scans_page():
 
     # Scans multi-port terminés (onglet « comparaison multi-port »).
     from agent_ia.scanner_multiport import nettoyer_cible
-    from models.models import ScanMultiPort, CibleMultiPort
+    from models.models import ScanMultiPort, CibleMultiPort, ResultatScanMultiPort
     scans_mp = []
     for s in ScanMultiPort.query.filter_by(statut='TERMINE').order_by(ScanMultiPort.started_at.desc()).all():
         c = CibleMultiPort.query.get(s.cible_id)
         nom = c.nom if c and c.nom else 'Inconnu'
+        # Ensemble des ports réellement scannés (toutes les lignes persistées) : sert à ne
+        # proposer en comparaison que des scans portant sur exactement les mêmes ports.
+        ports = sorted({r.port for r in ResultatScanMultiPort.query.filter_by(scan_id=s.id).all()})
         scans_mp.append({
             'id': s.id, 'cible': nom, 'cible_normale': nettoyer_cible(nom),
             'date': s.started_at.strftime('%d/%m/%Y %H:%M') if s.started_at else 'N/A',
+            'ports': ports,
         })
 
     return render_template('comparison_scans.html', admin=admin,
