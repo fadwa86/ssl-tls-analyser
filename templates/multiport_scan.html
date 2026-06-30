@@ -668,18 +668,22 @@
     }
 
     // ── Reprise au chargement ───────────────────────────────────────────────────
-    // On ne reprend l'affichage que si le scan est ENCORE en cours ; un scan terminé
-    // laisse la page vide (pas de réaffichage des résultats au reload).
+    // On ne reprend l'affichage (et l'hôte) que si le scan est ENCORE en cours. Un scan
+    // terminé laisse la page entièrement vide : champ cible vide, aucun résultat, et seule
+    // la découverte automatique reste cochée (état par défaut du formulaire).
     window.addEventListener('DOMContentLoaded', async () => {
         const saved = localStorage.getItem(SCAN_KEY);
         if (!saved) return;
         try {
             const {scanId, cible} = JSON.parse(saved);
-            if (!scanId) return;
-            if (cible) document.getElementById('cible').value = cible;   // hôte pré-rempli
+            if (!scanId) { localStorage.removeItem(SCAN_KEY); return; }
             const st = await (await fetch(`/multiport/scan_multiport_status/${scanId}`)).json();
-            if (st.statut === 'EN_COURS') ouvrirFlux(scanId, true);      // en cours -> reprise du flux
-            else localStorage.removeItem(SCAN_KEY);                      // terminé/inconnu -> page vide
+            if (st.statut === 'EN_COURS') {
+                if (cible) document.getElementById('cible').value = cible;   // reprise -> hôte repré-rempli
+                ouvrirFlux(scanId, true);                                    // en cours -> reprise du flux
+            } else {
+                localStorage.removeItem(SCAN_KEY);                          // terminé -> page entièrement vide
+            }
         } catch (e) {
             localStorage.removeItem(SCAN_KEY);
         }

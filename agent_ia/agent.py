@@ -1,13 +1,28 @@
 from agent_ia.modele_rf import predire_score
 import requests
 import concurrent.futures
+import threading
+import time
 
 # Cache API
 _cache_api = {}
 
+# Throttle NVD : au moins 1 s entre deux requêtes vers l'API NVD (limite de débit — sans
+# clé, NVD plafonne à ~5 req / 30 s et répond sinon par des 403/timeouts). Le verrou
+# sérialise l'espacement même quand get_nvd tourne dans le pool de threads.
+_nvd_lock = threading.Lock()
+_nvd_dernier = [0.0]          # horodatage monotonic de la dernière requête NVD
+_NVD_INTERVALLE_MIN = 1.0     # secondes entre deux requêtes
+
 
 def get_nvd(cve_id, cvss_statique):
     try:
+        # Respecte un intervalle minimum de 1 s entre deux requêtes NVD (anti rate-limit).
+        with _nvd_lock:
+            attente = _NVD_INTERVALLE_MIN - (time.monotonic() - _nvd_dernier[0])
+            if attente > 0:
+                time.sleep(attente)
+            _nvd_dernier[0] = time.monotonic()
         url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={cve_id}"
         r   = requests.get(url, timeout=2, headers={'User-Agent': 'TLS-Analyser/1.0'})
         if r.status_code == 200:

@@ -324,19 +324,24 @@ function afficherFindingsLive(findings) {
     document.getElementById('tableContent').innerHTML = html;
 }
 
-// Reprise au chargement : on ne réaffiche un scan que s'il est ENCORE en cours.
-// Un scan terminé laisse la page vide (pas de réaffichage des résultats au reload).
+// Reprise au chargement : on ne réaffiche un scan (et son hôte) que s'il est ENCORE en
+// cours. Un scan terminé laisse la page entièrement vide — y compris le champ URL.
 window.addEventListener('DOMContentLoaded', async () => {
-    const c = localStorage.getItem('scan_simple_cible');
-    if (c) document.getElementById('cibleInput').value = c;   // hôte pré-rempli
     const sid = localStorage.getItem(SCAN_KEY);
-    if (!sid) return;                                         // aucun scan mémorisé -> page vide
+    if (!sid) { localStorage.removeItem('scan_simple_cible'); return; }   // rien en cours -> tout vide (URL incluse)
     try {
         const st = await (await fetch(`/scan_status/${sid}`)).json();
-        if (st.statut === 'EN_COURS') ouvrirFlux(sid, true);  // en cours -> reprise du flux SSE
-        else localStorage.removeItem(SCAN_KEY);               // terminé/inconnu -> on oublie, page vide
+        if (st.statut === 'EN_COURS') {
+            const c = localStorage.getItem('scan_simple_cible');
+            if (c) document.getElementById('cibleInput').value = c;       // reprise -> on repré-remplit l'hôte
+            ouvrirFlux(sid, true);                                        // en cours -> reprise du flux SSE
+        } else {
+            localStorage.removeItem(SCAN_KEY);
+            localStorage.removeItem('scan_simple_cible');                 // terminé/inconnu -> tout vide, URL incluse
+        }
     } catch (e) {
         localStorage.removeItem(SCAN_KEY);
+        localStorage.removeItem('scan_simple_cible');
     }
 });
 
