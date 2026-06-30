@@ -154,6 +154,16 @@
             font-size: 0.9rem;
             background: var(--card);
             color: var(--text);
+            transition: background .15s, color .15s, opacity .15s;
+        }
+        /* Liste désactivée (tant qu'aucun « Scan ancien » n'est choisi) : grisée et moderne,
+           affiche « -- Choisir un scan -- » en texte atténué, curseur non autorisé. */
+        .form-select:disabled {
+            background: var(--bg);
+            color: var(--muted);
+            border-style: dashed;
+            cursor: not-allowed;
+            opacity: 0.75;
         }
         .btn-compare {
             background: #6366f1;
@@ -281,7 +291,7 @@
                         <select class="form-select" id="scanAncien">
                             <option value="">-- Choisir un scan --</option>
                             {% for scan in scans %}
-                                <option value="{{ scan.id }}" data-url="{{ scan.cible_normale }}">{{ scan.cible }} — {{ scan.dateDebut }} — {{ scan.statut }}</option>
+                                <option value="{{ scan.id }}" data-url="{{ scan.cible_normale }}" data-date="{{ scan.dateDebut }}">{{ scan.cible }} — {{ scan.dateDebut }} — {{ scan.statut }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -290,7 +300,7 @@
                         <select class="form-select" id="scanRecent">
                             <option value="">-- Choisir un scan --</option>
                             {% for scan in scans %}
-                                <option value="{{ scan.id }}" data-url="{{ scan.cible_normale }}">{{ scan.cible }} — {{ scan.dateDebut }} — {{ scan.statut }}</option>
+                                <option value="{{ scan.id }}" data-url="{{ scan.cible_normale }}" data-date="{{ scan.dateDebut }}">{{ scan.cible }} — {{ scan.dateDebut }} — {{ scan.statut }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -361,7 +371,7 @@
                         <select class="form-select" id="mpAncien">
                             <option value="">-- Choisir un scan --</option>
                             {% for s in scans_mp %}
-                            <option value="{{ s.id }}" data-url="{{ s.cible_normale }}" data-ports="{{ s.ports|join(',') }}">{{ s.cible }} — {{ s.date }}</option>
+                            <option value="{{ s.id }}" data-url="{{ s.cible_normale }}" data-ports="{{ s.ports|join(',') }}" data-date="{{ s.date }}">{{ s.cible }} — {{ s.date }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -370,7 +380,7 @@
                         <select class="form-select" id="mpRecent">
                             <option value="">-- Choisir un scan --</option>
                             {% for s in scans_mp %}
-                            <option value="{{ s.id }}" data-url="{{ s.cible_normale }}" data-ports="{{ s.ports|join(',') }}">{{ s.cible }} — {{ s.date }}</option>
+                            <option value="{{ s.id }}" data-url="{{ s.cible_normale }}" data-ports="{{ s.ports|join(',') }}" data-date="{{ s.date }}">{{ s.cible }} — {{ s.date }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -443,6 +453,29 @@ function diffLabel(t){
 // Comparaison via Server-Sent Events : chaque partie s'affiche dès qu'elle est calculée.
 const COMP_KEY = 'comparaison_en_cours';   // mémorise la comparaison pour reprise au reload
 let evtSource = null;
+
+// Mono-port : « Scan récent » désactivé tant qu'aucun « Scan ancien » n'est choisi ; ensuite
+// on ne propose que les scans du MÊME hôte, en excluant le scan lui-même (même hôte + horodatage).
+(function () {
+    const anc = document.getElementById('scanAncien');
+    const rec = document.getElementById('scanRecent');
+    if (!anc || !rec) return;
+    rec.disabled = true;
+    anc.addEventListener('change', function () {
+        const opt  = anc.options[anc.selectedIndex];
+        const url  = opt ? (opt.getAttribute('data-url')  || '') : '';
+        const date = opt ? (opt.getAttribute('data-date') || '') : '';
+        rec.value = '';
+        rec.disabled = !anc.value;          // réactivé seulement si un scan ancien est choisi
+        for (const o of rec.options) {
+            if (!o.value) { o.hidden = false; continue; }       // garde le placeholder
+            if (!anc.value) { o.hidden = false; continue; }     // ancien vidé → tout réafficher
+            const sameHost = o.getAttribute('data-url') === url;
+            const selfScan = sameHost && o.getAttribute('data-date') === date;
+            o.hidden = !(sameHost && !selfScan);                // même hôte, sauf le scan lui-même
+        }
+    });
+})();
 
 async function lancerComparaison() {
     const scanAncienEl = document.getElementById('scanAncien');
@@ -559,10 +592,13 @@ function ajouterLigneDiff(item) {
     document.getElementById('diffBody').appendChild(tr);
 }
 
-// Reprise au chargement : reconnexion à une comparaison en cours ou déjà terminée.
+// Initialisation : la page de comparaison démarre TOUJOURS vide — aucun résultat précédent,
+// aucune liste pré-sélectionnée. On oublie toute comparaison mono-port mémorisée.
 window.addEventListener('DOMContentLoaded', () => {
-    const cid = localStorage.getItem(COMP_KEY);
-    if (cid) ouvrirFlux(cid, true);
+    localStorage.removeItem(COMP_KEY);
+    document.getElementById('scanAncien').value = '';
+    document.getElementById('scanRecent').value = '';
+    document.getElementById('resultSection').style.display = 'none';
 });
 
 function afficherResultats(data) {
@@ -620,16 +656,22 @@ let evtSourceMP = null;
     const ancien = document.getElementById('mpAncien');
     const recent = document.getElementById('mpRecent');
     if (!ancien || !recent) return;
+    recent.disabled = true;   // désactivé tant qu'aucun scan ancien n'est choisi
     ancien.addEventListener('change', function () {
         const opt   = ancien.options[ancien.selectedIndex];
         const ports = opt ? (opt.getAttribute('data-ports') || '') : '';
         const url   = opt ? (opt.getAttribute('data-url')   || '') : '';
-        recent.value = '';  // réinitialise : l'ancienne sélection peut être devenue invalide
+        const date  = opt ? (opt.getAttribute('data-date')  || '') : '';
+        recent.value = '';                 // l'ancienne sélection peut être devenue invalide
+        recent.disabled = !ancien.value;   // réactivé seulement si un scan ancien est choisi
         for (const o of recent.options) {
             if (!o.value) { o.hidden = false; continue; }  // garde le placeholder
             if (!ancien.value) { o.hidden = false; continue; }  // ancien vidé → tout réafficher
-            o.hidden = !(o.getAttribute('data-ports') === ports &&
-                         o.getAttribute('data-url')   === url);
+            // même hôte + mêmes ports, en excluant le scan lui-même (même hôte + même horodatage)
+            const sameHostPorts = o.getAttribute('data-ports') === ports &&
+                                  o.getAttribute('data-url')   === url;
+            const selfScan = sameHostPorts && o.getAttribute('data-date') === date;
+            o.hidden = !(sameHostPorts && !selfScan);
         }
     });
 })();
@@ -727,11 +769,6 @@ function afficherResultatsMP(data) {
     const cls = evo < 0 ? 'score-improved' : 'score-degraded';
     document.getElementById('mpScoreEvolution').innerHTML =
         `<span class="score-badge ${cls}">Score IA: ${data.score_ia_ancien} → ${data.score_ia_nouveau} ${evo < 0 ? '↓' : '↑'}</span>`;
-    if (data.observation_ia) {
-        document.getElementById('mpObsBox').style.display = 'block';
-        document.getElementById('mpObsBox').innerHTML =
-            '<strong><i class="fas fa-robot me-2"></i>Analyse IA :</strong><br>' + data.observation_ia;
-    }
     document.getElementById('mpCorrigees').textContent = data.nb_corrigees || 0;
     document.getElementById('mpNouvelles').textContent = data.nb_nouvelles || 0;
     document.getElementById('mpInchangees').textContent = data.nb_inchangees || 0;
@@ -740,9 +777,12 @@ function afficherResultatsMP(data) {
     document.getElementById('mpResultSection').style.display = 'block';
 }
 
+// Idem multi-port : démarrage à vide, aucune comparaison restaurée.
 window.addEventListener('DOMContentLoaded', () => {
-    const cid = localStorage.getItem(COMP_MP_KEY);
-    if (cid) ouvrirFluxMP(cid, true);
+    localStorage.removeItem(COMP_MP_KEY);
+    document.getElementById('mpAncien').value = '';
+    document.getElementById('mpRecent').value = '';
+    document.getElementById('mpResultSection').style.display = 'none';
 });
 </script>
 </body>

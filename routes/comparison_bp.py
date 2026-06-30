@@ -14,6 +14,16 @@ comparison_bp = Blueprint('comparison_bp', __name__)
 comparaisons_en_cours = {}
 
 
+def _score_global_compare(criticites):
+    """Score global d'un scan (mono- ET multi-port) affiché dans la comparaison :
+    moyenne des criticités des findings réels + 0,5 par finding réel (CVE/CWE), borné à 10.
+    Liste vide (aucune vuln réelle) → 0. Ce n'est PAS une simple moyenne : le nombre de
+    CVE pèse explicitement (moyenne + cve×coeff), pour ne pas diluer un scan très vulnérable."""
+    if not criticites:
+        return 0.0
+    return min(round(sum(criticites) / len(criticites) + 0.5 * len(criticites), 2), 10.0)
+
+
 def normaliser_url(url):
     if not url:
         return ''
@@ -294,14 +304,14 @@ def calculer_diff_scans(scan_ancien_id, scan_nouveau_id, emit=None):
     nb_aggravees = 0
     nb_ameliorees = 0
 
-    # Score IA global d'un scan = moyenne des criticités de ses vulnérabilités
-    # (même logique de moyenne que le scan multi-port ; 0 si aucune vulnérabilité).
+    # Score IA global d'un scan = moyenne des criticités + 0,5 par finding réel (CVE/CWE),
+    # borné à 10 (cf. _score_global_compare ; MÊME formule mono- et multi-port).
     # Calculé depuis les vulns extraites -> fonctionne pour TOUS les scans existants,
     # sans colonne BDD ni migration. (Le modèle Scan ne stocke aucun score global.)
     def _score_global(vulns):
         # Les findings informationnels (sans CVE) ne pèsent pas sur le score global.
         scores = [float(v.get('score_ia', 0) or 0) for v in vulns if not est_informatif(v)]
-        return round(sum(scores) / len(scores), 2) if scores else 0.0
+        return _score_global_compare(scores)
 
     score_ia_ancien = _score_global(vulns_ancien)
     score_ia_nouveau = _score_global(vulns_nouveau)
@@ -495,8 +505,9 @@ def calculer_diff_multiport(aid, nid, emit=None):
     cles = set(anc) | set(nouv)                       # union des (port, nom)
 
     def _score(vulns):
+        # Score global = moyenne des criticités + 0,5 par finding réel (CVE/CWE), borné à 10.
         vals = [float(v['criticite'] or 0) for v in vulns.values() if not est_informatif(v)]
-        return round(sum(vals) / len(vals), 2) if vals else 0.0
+        return _score_global_compare(vals)
 
     lignes, cnt = [], {'FIXED': 0, 'NEW': 0, 'UNCHANGED': 0, 'AGGRAVE': 0, 'AMELIORE': 0}
     for (port, nom) in sorted(cles, key=lambda k: (k[0] or 0, k[1] or '')):
