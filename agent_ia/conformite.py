@@ -17,6 +17,17 @@ def calculer_grade_tls(findings):
     return 'A'
 
 
+def calculer_score_global(criticites):
+    """Score IA global UNIFIÉ — identique partout : scan multi-port, historique, rapport PDF
+    et comparaison. Formule : moyenne des criticités des findings RÉELS (CVE/CWE) + 0,5 par
+    finding réel, borné à 10 ; aucune vuln réelle → 0. Les informationnels doivent être
+    exclus AVANT l'appel (la liste ne contient que des criticités de vraies vulnérabilités).
+    Ce n'est PAS une simple moyenne : le nombre de CVE pèse (moyenne + cve×0,5)."""
+    if not criticites:
+        return 0.0
+    return min(round(sum(criticites) / len(criticites) + 0.5 * len(criticites), 2), 10.0)
+
+
 def _port_conforme(p):
     """Règles booléennes de conformité sur un port (dict issu de details_bruts)."""
     proto = p.get('protocoles', {})
@@ -66,6 +77,9 @@ if __name__ == '__main__':
     assert calculer_grade_tls([{'severite': 'CRITICAL'}]) == 'F'
     assert calculer_grade_tls([{'severite': 'LOW'}]) == 'A'
     assert calculer_grade_tls([]) == 'A'
+    assert calculer_score_global([]) == 0.0
+    assert calculer_score_global([7.57, 4.97, 6.16]) == 7.73       # moyenne 6.23 + 0,5×3
+    assert calculer_score_global([10, 10, 10, 10, 10]) == 10.0     # borné à 10
     port_faible = {'port': 25, 'protocoles': {'tls10': True, 'tls12': True}, 'certificat': {'valid': True}}
     port_sain = {'port': 443, 'protocoles': {'tls12': True, 'tls13': True}, 'certificat': {'valid': True}}
     assert evaluer_conformite([port_faible])['pci_dss'] is False

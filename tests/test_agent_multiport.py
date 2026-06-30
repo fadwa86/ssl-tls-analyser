@@ -11,8 +11,11 @@ pytestmark = pytest.mark.unit
 
 
 def _p(port, score, tls, statut='SUCCES'):
-    """Même helper que le bloc inline : construit un résultat de port factice."""
-    return {'port': port, 'score_risque': score, 'statut': statut,
+    """Helper : port factice avec un finding réel (criticité=score) pour la formule unifiée ;
+    'score_risque' conservé pour l'analyse d'incohérence."""
+    findings = [{'nom': f'v{port}', 'cve': 'CVE-0000-0001', 'criticite': score,
+                 'severite': 'HIGH'}] if score else []
+    return {'port': port, 'score_risque': score, 'statut': statut, 'findings': findings,
             'protocoles': {'tls_supported_str': tls, 'preferred': tls.split(',')[0] or None},
             'certificat': {'valid': True}}
 
@@ -34,7 +37,8 @@ def test_port_fantome_filtre_pas_d_observation():
 
 
 def test_score_global_non_dilue_par_fantome():
-    assert calculer_score_risque_global([_p(993, 8, 'TLS1.1'), _p(443, 0, '')], {}) == 8.0
+    # Formule unifiée (= comparaison) : moyenne + 0,5 par finding réel → 8 + 0,5 = 8,5.
+    assert calculer_score_risque_global([_p(993, 8, 'TLS1.1'), _p(443, 0, '')], {}) == 8.5
 
 
 def test_ports_reels_garde_ssl2_only():

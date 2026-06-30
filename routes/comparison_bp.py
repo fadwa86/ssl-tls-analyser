@@ -5,6 +5,7 @@ from models.models import ComparaisonScan, ComparaisonVulnerabilite
 from routes.sse_util import flux_evenements, sse_event
 from agent_ia.agent import vulns_scorees_locales
 from agent_ia.classification import est_informatif
+from agent_ia.conformite import calculer_score_global
 from datetime import datetime
 import threading
 import json
@@ -14,14 +15,9 @@ comparison_bp = Blueprint('comparison_bp', __name__)
 comparaisons_en_cours = {}
 
 
-def _score_global_compare(criticites):
-    """Score global d'un scan (mono- ET multi-port) affiché dans la comparaison :
-    moyenne des criticités des findings réels + 0,5 par finding réel (CVE/CWE), borné à 10.
-    Liste vide (aucune vuln réelle) → 0. Ce n'est PAS une simple moyenne : le nombre de
-    CVE pèse explicitement (moyenne + cve×coeff), pour ne pas diluer un scan très vulnérable."""
-    if not criticites:
-        return 0.0
-    return min(round(sum(criticites) / len(criticites) + 0.5 * len(criticites), 2), 10.0)
+# Score global de comparaison = helper unifié partagé (agent_ia/conformite). Alias conservé
+# pour la rétro-compatibilité (appelé par calculer_diff_scans et calculer_diff_multiport).
+_score_global_compare = calculer_score_global
 
 
 def normaliser_url(url):
@@ -494,6 +490,15 @@ def extraire_vulns_multiport(scan_id):
                 'criticite': f.get('criticite', 0), 'severite': f.get('severite'),
             }
     return out
+
+
+def score_global_multiport(scan_id):
+    """Score IA global unifié d'un scan multi-port, recalculé depuis ses findings stockés
+    (MÊME extraction que la comparaison, dédup par (port, nom)) → garantit l'égalité
+    scan / historique / rapport / comparaison pour TOUS les scans (existants compris)."""
+    vulns = extraire_vulns_multiport(scan_id)
+    crits = [float(v['criticite'] or 0) for v in vulns.values() if not est_informatif(v)]
+    return calculer_score_global(crits)
 
 
 def calculer_diff_multiport(aid, nid, emit=None):

@@ -1,6 +1,9 @@
 from datetime import datetime, timezone
 import json
 
+from agent_ia.conformite import calculer_score_global
+from agent_ia.classification import est_informatif
+
 
 def _est_expire(expire_iso):
     """Vrai si le certificat est expiré. Sûr vis-à-vis des fuseaux (aware/naive)."""
@@ -132,31 +135,26 @@ def generate_observation_ia(resultats_ports, features):
     
     return "\n\n".join(observations)
 
-def calculer_score_risque_global(resultats_ports, features_incoherence):
-    # Cohérent avec l'observation : on ignore les ports fantômes (non-TLS, score 0)
-    # qui sinon diluent la moyenne.
-    resultats_ports = _ports_reels(resultats_ports)
-    if not resultats_ports:
-        return 0
-
-    scores_ports = [r.get('score_risque', 0) for r in resultats_ports]
-    score_moyen = sum(scores_ports) / len(scores_ports)
-
-    delta_score = features_incoherence.get('delta_score_max', 0)
-    amplification_incoherence = delta_score * 0.3
-
-    ports_vuln = features_incoherence.get('ports_vulneres', 0)
-    amplification_vuln = ports_vuln * 0.5
-
-    score_global = score_moyen + amplification_incoherence + amplification_vuln
-
-    return min(round(score_global, 2), 10)
+def calculer_score_risque_global(resultats_ports, features_incoherence=None):
+    """Score IA global UNIFIÉ — IDENTIQUE à la comparaison, l'historique et le rapport PDF :
+    moyenne des criticités de TOUS les findings réels (CVE/CWE), dédupliqués par (port, nom)
+    exactement comme la comparaison, + 0,5 par finding réel, borné à 10. On ignore les ports
+    fantômes (non-TLS) via _ports_reels. `features_incoherence` n'est plus utilisé (gardé en
+    paramètre optionnel pour compat avec l'appelant ; l'incohérence reste dans l'observation)."""
+    vus = {}
+    for p in _ports_reels(resultats_ports):
+        for f in p.get('findings', []) or []:
+            if not est_informatif(f):
+                vus[(p.get('port'), f.get('nom'))] = float(f.get('criticite', 0) or 0)
+    return calculer_score_global(list(vus.values()))
 
 
 if __name__ == '__main__':
     # Auto-vérification hors-ligne (logique pure, sans BDD ni réseau).
     def _p(port, score, tls, statut='SUCCES'):
-        return {'port': port, 'score_risque': score, 'statut': statut,
+        findings = [{'nom': f'v{port}', 'cve': 'CVE-0000-0001', 'criticite': score,
+                     'severite': 'HIGH'}] if score else []
+        return {'port': port, 'score_risque': score, 'statut': statut, 'findings': findings,
                 'protocoles': {'tls_supported_str': tls, 'preferred': tls.split(',')[0] or None},
                 'certificat': {'valid': True}}
 
@@ -169,8 +167,8 @@ if __name__ == '__main__':
     obs2, _ = analyser_incoherence_multiport([_p(993, 8, 'TLS1.1'), _p(443, 0, '')])
     assert obs2 is None, "le port fantôme doit être filtré (pas de fausse incohérence)"
 
-    # Score global non dilué par le fantôme : ~8, pas ~4.
-    assert calculer_score_risque_global([_p(993, 8, 'TLS1.1'), _p(443, 0, '')], {}) == 8.0
+    # Score global non dilué par le fantôme (formule unifiée : moyenne + 0,5×nb_cve).
+    assert calculer_score_risque_global([_p(993, 8, 'TLS1.1'), _p(443, 0, '')]) == 8.5
 
     # Port SSL2-uniquement (preferred=None) NON filtré (tls_supported_str non vide).
     assert len(_ports_reels([_p(25, 9, 'SSL2'), _p(587, 2, 'TLS1.2')])) == 2
