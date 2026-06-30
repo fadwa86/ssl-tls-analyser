@@ -170,7 +170,7 @@ function toggleTheme() {
     document.body.classList.toggle('light-mode');
     const isLight = document.body.classList.contains('light-mode');
     document.getElementById('themeIcon').textContent = isLight ? '☀️' : '🌙';
-    document.getElementById('themeText').textContent = isLight ? 'Mode sombre' : 'mode  clair';
+    document.getElementById('themeText').textContent = isLight ? 'Mode sombre' : 'Mode clair';
     localStorage.setItem('theme', isLight ? 'light' : 'dark');
 }
 

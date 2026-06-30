@@ -41,9 +41,9 @@ def determiner_urgence(severite):
     if severite == 'INFORMATIF':
         return 'Informatif', GRIS_TEXTE
     if severite == 'CRITICAL':
-        return 'Corriger immediatement', ROUGE
+        return 'Corriger immédiatement', ROUGE
     elif severite == 'HIGH':
-        return 'Corriger immediatement', ORANGE
+        return 'Corriger immédiatement', ORANGE
     elif severite == 'MEDIUM':
         return 'Corriger rapidement', VERT
     else:
@@ -83,20 +83,20 @@ def generer_pdf(scan, cible, vulnerabilites, type_serveur, version_serveur, admi
     # ===== PAGE DE GARDE ======================================================
     elements.append(Spacer(1, 1.5*cm))
     elements.append(Paragraph("SSL/TLS Analyser", style_titre))
-    elements.append(Paragraph("Rapport d'analyse de securite SSL/TLS", style_sous_titre))
+    elements.append(Paragraph("Rapport d'analyse de sécurité SSL/TLS", style_sous_titre))
     elements.append(HRFlowable(width="100%", thickness=1.5, color=BLEU))
     elements.append(Spacer(1, 0.8*cm))
 
     data_garde = [
-        ['Cible analysee',          cible.url],
-        ['Date du scan',            scan.dateDebut.strftime('%d/%m/%Y a %H:%M')],
-        ['Date fin du scan',        scan.dateFin.strftime('%d/%m/%Y a %H:%M') if scan.dateFin else 'N/A'],
-        ['Date generation rapport', datetime.now().strftime('%d/%m/%Y a %H:%M')],
+        ['Cible analysée',          cible.url],
+        ['Date du scan',            scan.dateDebut.strftime('%d/%m/%Y à %H:%M')],
+        ['Date fin du scan',        scan.dateFin.strftime('%d/%m/%Y à %H:%M') if scan.dateFin else 'N/A'],
+        ['Date génération rapport', datetime.now().strftime('%d/%m/%Y à %H:%M')],
         ['Scan ID',                 f'#{scan.id}'],
-        ['Realise par',             f"{admin.prenom} {admin.nom}"],
-        ['Role',                    admin.role if admin.role else 'Analyste de securite'],
-        ['Serveur detecte',         f"{type_serveur.upper()} — {version_serveur}"],
-        ['Type recommandations',    'Personnalisees' if type_serveur != 'inconnu' else 'Generiques'],
+        ['Réalisé par',             f"{admin.prenom} {admin.nom}"],
+        ['Rôle',                    admin.role if admin.role else 'Analyste de sécurité'],
+        ['Serveur détecté',         f"{type_serveur.upper()} — {version_serveur}"],
+        ['Type recommandations',    'Personnalisées' if type_serveur != 'inconnu' else 'Génériques'],
     ]
 
     table_garde = Table(data_garde, colWidths=[6*cm, 11*cm])
@@ -138,7 +138,7 @@ def generer_pdf(scan, cible, vulnerabilites, type_serveur, version_serveur, admi
     if nb_critical > 0:
         niveau_risque, couleur_risque = "CRITIQUE", ROUGE
     elif nb_high > 0:
-        niveau_risque, couleur_risque = "ELEVE",   ORANGE
+        niveau_risque, couleur_risque = "ÉLEVÉ",   ORANGE
     elif nb_medium > 0:
         niveau_risque, couleur_risque = "MOYEN",   VERT
     else:
@@ -150,20 +150,20 @@ def generer_pdf(scan, cible, vulnerabilites, type_serveur, version_serveur, admi
     elements.append(Spacer(1, 0.8*cm))
 
     # ===== 1. RÉSUMÉ ==========================================================
-    elements.append(Paragraph("1. Resume", style_h1))
+    elements.append(Paragraph("1. Résumé", style_h1))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=GRIS_MOYEN))
     elements.append(Spacer(1, 0.3*cm))
 
     data_resume = [
         ['Indicateur',               'Valeur'],
-        ['Total vulnerabilites',     str(nb_total)],
-        ['Vulnerabilites critiques', str(nb_critical)],
-        ['Vulnerabilites elevees',   str(nb_high)],
-        ['Vulnerabilites moyennes',  str(nb_medium)],
+        ['Total vulnérabilités',     str(nb_total)],
+        ['Vulnérabilités critiques', str(nb_critical)],
+        ['Vulnérabilités élevées',   str(nb_high)],
+        ['Vulnérabilités moyennes',  str(nb_medium)],
         ['Niveau de risque',         niveau_risque],
         ['Grade TLS (A-F)',          grade_tls],
-        ['Conformite PCI-DSS v4.0',  'CONFORME' if conf.get('pci_dss') else 'NON CONFORME'],
-        ['Conformite NIST SP 800-52','CONFORME' if conf.get('nist') else 'NON CONFORME'],
+        ['Conformité PCI-DSS v4.0',  'CONFORME' if conf.get('pci_dss') else 'NON CONFORME'],
+        ['Conformité NIST SP 800-52','CONFORME' if conf.get('nist') else 'NON CONFORME'],
     ]
     table_resume = Table(data_resume, colWidths=[8*cm, 9*cm])
     table_resume.setStyle(TableStyle([
@@ -181,12 +181,12 @@ def generer_pdf(scan, cible, vulnerabilites, type_serveur, version_serveur, admi
     elements.append(Spacer(1, 0.8*cm))
 
     # ===== 2. VULNÉRABILITÉS ==================================================
-    elements.append(Paragraph("2. Vulnerabilites detectees", style_h1))
+    elements.append(Paragraph("2. Vulnérabilités détectées", style_h1))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=GRIS_MOYEN))
     elements.append(Spacer(1, 0.3*cm))
 
     if vulnerabilites:
-        data_vulns = [['#', 'Nom', 'CVE', 'Severite', 'CVSS', 'EPSS', 'Score IA']]
+        data_vulns = [['#', 'Nom', 'CVE', 'Sévérité', 'CVSS', 'EPSS', 'Score IA']]
         for i, v in enumerate(vulnerabilites, 1):
             data_vulns.append([
                 str(i), v['nom'], v['cve'],
@@ -222,19 +222,19 @@ def generer_pdf(scan, cible, vulnerabilites, type_serveur, version_serveur, admi
         table_vulns.setStyle(TableStyle(style_table))
         elements.append(table_vulns)
     else:
-        elements.append(Paragraph("Aucune vulnerabilite detectee pour ce scan.", style_normal))
+        elements.append(Paragraph("Aucune vulnérabilité détectée pour ce scan.", style_normal))
 
     elements.append(Spacer(1, 0.8*cm))
 
     # ===== 3. PRIORISATION ====================================================
-    elements.append(Paragraph("3. Priorisation des vulnerabilites", style_h1))
+    elements.append(Paragraph("3. Priorisation des vulnérabilités", style_h1))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=GRIS_MOYEN))
     elements.append(Spacer(1, 0.3*cm))
 
     if vulnerabilites:
         vulns_triees = sorted(vulnerabilites, key=lambda x: x['criticite'], reverse=True)
 
-        data_prio = [['Rang', 'Vulnerabilite', 'Severite', 'Score IA', 'Urgence']]
+        data_prio = [['Rang', 'Vulnérabilité', 'Sévérité', 'Score IA', 'Urgence']]
         for i, v in enumerate(vulns_triees, 1):
             # ✅ Urgence basée sur la sévérité RF, pas sur criticite >= 7
             urgence, _ = determiner_urgence(v['severite'])
@@ -272,18 +272,18 @@ def generer_pdf(scan, cible, vulnerabilites, type_serveur, version_serveur, admi
     elements.append(Spacer(1, 0.8*cm))
 
     # ===== 4. REMÉDIATION =====================================================
-    elements.append(Paragraph("4. Recommandations de remediation", style_h1))
+    elements.append(Paragraph("4. Recommandations de remédiation", style_h1))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=GRIS_MOYEN))
     elements.append(Spacer(1, 0.3*cm))
 
     if type_serveur != 'inconnu':
         elements.append(Paragraph(
-            f"Recommandations personnalisees pour {type_serveur.upper()} ({version_serveur})",
+            f"Recommandations personnalisées pour {type_serveur.upper()} ({version_serveur})",
             ParagraphStyle('ok', parent=styles['Normal'], fontSize=10, textColor=VERT, spaceAfter=10)
         ))
     else:
         elements.append(Paragraph(
-            "Serveur non detecte — recommandations generiques",
+            "Serveur non détecté — recommandations génériques",
             ParagraphStyle('warn', parent=styles['Normal'], fontSize=10, textColor=ORANGE, spaceAfter=10)
         ))
 
@@ -299,9 +299,9 @@ def generer_pdf(scan, cible, vulnerabilites, type_serveur, version_serveur, admi
             elements.append(Paragraph(f"4.{i} {v['nom']}", style_h2))
 
             data_reco = [
-                ['Priorite',          priorite],
+                ['Priorité',          priorite],
                 ['Description',       reco['description']],
-                ['Etape correction',  config['etapeCorrection']],
+                ['Étape correction',  config['etapeCorrection']],
                 ['Solution',          config['solution']],
             ]
             table_reco = Table(data_reco, colWidths=[4*cm, 13*cm])
@@ -329,9 +329,9 @@ def generer_pdf(scan, cible, vulnerabilites, type_serveur, version_serveur, admi
     elements.append(HRFlowable(width="100%", thickness=0.5, color=GRIS_MOYEN))
     elements.append(Spacer(1, 0.3*cm))
     elements.append(Paragraph(
-        f"SSL/TLS Analyser — Rapport genere le {datetime.now().strftime('%d/%m/%Y a %H:%M')} "
+        f"SSL/TLS Analyser — Rapport généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')} "
         f"par {admin.prenom} {admin.nom} "
-        f"({admin.role if admin.role else 'Analyste de securite'}) — Confidentiel",
+        f"({admin.role if admin.role else 'Analyste de sécurité'}) — Confidentiel",
         style_footer
     ))
 
@@ -382,7 +382,7 @@ def generer_rapport(scan_id):
 
     vulnerabilites  = []
     type_serveur    = 'inconnu'
-    version_serveur = 'Non detecte'
+    version_serveur = 'Non détecté'
     donnees         = {}
 
     if resultat and resultat.donneesSSL:
@@ -390,7 +390,7 @@ def generer_rapport(scan_id):
             donnees         = json.loads(resultat.donneesSSL)
             serveur_info    = donnees.get('serveur', {})
             type_serveur    = serveur_info.get('type', 'inconnu')
-            version_serveur = serveur_info.get('version', 'Non detecte')
+            version_serveur = serveur_info.get('version', 'Non détecté')
             vulnerabilites  = analyser_resultats(donnees)
         except Exception as e:
             print("Erreur:", e)
@@ -458,15 +458,15 @@ def generer_pdf_multiport(cible, date_scan, date_generation, admin, grade, score
     # ===== PAGE DE GARDE ======================================================
     e.append(Spacer(1, 1.2*cm))
     e.append(Paragraph("SSL/TLS Analyser", style_titre))
-    e.append(Paragraph("Rapport d'analyse de securite TLS/SSL — multi-ports", style_sous_titre))
+    e.append(Paragraph("Rapport d'analyse de sécurité TLS/SSL — multi-ports", style_sous_titre))
     e.append(HRFlowable(width="100%", thickness=1.5, color=BLEU))
     e.append(Spacer(1, 0.6*cm))
 
     garde = [
-        ['Cible scannee',   cible],
+        ['Cible scannée',   cible],
         ['Date du scan',    date_scan],
-        ['Genere par',      f"{admin.prenom} {admin.nom} ({admin.role or 'Analyste de securite'})"],
-        ['Serveur detecte', f"{(serveur.get('type') or 'inconnu').upper()} — {serveur.get('version') or 'Non detecte'}"],
+        ['Généré par',      f"{admin.prenom} {admin.nom} ({admin.role or 'Analyste de sécurité'})"],
+        ['Serveur détecté', f"{(serveur.get('type') or 'inconnu').upper()} — {serveur.get('version') or 'Non détecté'}"],
     ]
     t_garde = Table([[k, P(v)] for k, v in garde], colWidths=[5*cm, 12*cm])
     t_garde.setStyle(TableStyle([
@@ -485,7 +485,7 @@ def generer_pdf_multiport(cible, date_scan, date_generation, admin, grade, score
     e.append(PageBreak())
 
     # ===== 1. RÉSUMÉ EXÉCUTIF =================================================
-    e.append(Paragraph("1. Resume executif", style_h1))
+    e.append(Paragraph("1. Résumé exécutif", style_h1))
     e.append(HRFlowable(width="100%", thickness=0.5, color=GRIS_MOYEN))
     e.append(Spacer(1, 0.3*cm))
 
@@ -512,7 +512,7 @@ def generer_pdf_multiport(cible, date_scan, date_generation, admin, grade, score
     e.append(t_res)
     e.append(Spacer(1, 0.4*cm))
 
-    counts = [['Critiques', 'Elevees', 'Moyennes', 'Total findings'],
+    counts = [['Critiques', 'Élevées', 'Moyennes', 'Total findings'],
               [str(nb_critical), str(nb_high), str(nb_medium), str(nb_total)]]
     t_counts = Table(counts, colWidths=[4.25*cm]*4)
     t_counts.setStyle(TableStyle([
@@ -526,16 +526,16 @@ def generer_pdf_multiport(cible, date_scan, date_generation, admin, grade, score
     e.append(Spacer(1, 0.3*cm))
     e.append(Paragraph(f"<b>Recommandation principale :</b> {escape(str(reco_principale))}", style_normal))
     if observation_ia:
-        e.append(Paragraph("Observation IA (incoherence multi-ports)", style_h2))
+        e.append(Paragraph("Observation IA (incohérence multi-ports)", style_h2))
         e.append(Paragraph(escape(str(observation_ia)), style_small))
     e.append(Spacer(1, 0.4*cm))
 
     # ===== 2. DÉTAIL PAR PORT =================================================
-    e.append(Paragraph("2. Detail par port / service", style_h1))
+    e.append(Paragraph("2. Détail par port / service", style_h1))
     e.append(HRFlowable(width="100%", thickness=0.5, color=GRIS_MOYEN))
     e.append(Spacer(1, 0.3*cm))
     if not ports:
-        e.append(Paragraph("Aucun service TLS vulnerable detecte — configuration saine.", style_normal))
+        e.append(Paragraph("Aucun service TLS vulnérable détecté — configuration saine.", style_normal))
     for p in ports:
         titre = f"Port {p.get('port')} — {p.get('protocole') or ''}"
         if p.get('logiciel'):
@@ -550,10 +550,10 @@ def generer_pdf_multiport(cible, date_scan, date_generation, admin, grade, score
             cipher_txt = 'N/A'
         cert = [
             ['Certificat (CN)',          P(p.get('cert_cn') or 'N/A')],
-            ['Emetteur',                 P(p.get('cert_issuer') or 'N/A')],
+            ['Émetteur',                 P(p.get('cert_issuer') or 'N/A')],
             ['Algorithme de signature',  P(p.get('cert_algo') or 'N/A')],
-            ['Validite restante',        P(p.get('cert_duree') or 'N/A')],
-            ['Versions TLS',             P(f"{p.get('tls') or 'N/A'} (preferee : {p.get('tls_prefere') or 'N/A'})")],
+            ['Validité restante',        P(p.get('cert_duree') or 'N/A')],
+            ['Versions TLS',             P(f"{p.get('tls') or 'N/A'} (préférée : {p.get('tls_prefere') or 'N/A'})")],
             ['Suites de chiffrement',    P(cipher_txt)],
         ]
         t_cert = Table(cert, colWidths=[4.5*cm, 12.5*cm])
@@ -568,14 +568,14 @@ def generer_pdf_multiport(cible, date_scan, date_generation, admin, grade, score
 
         findings = p.get('findings') or []
         if findings:
-            data = [['Vulnerabilite', 'CVE', 'Severite', 'CVSS', 'EPSS', 'Score IA']]
+            data = [['Vulnérabilité', 'CVE', 'Sévérité', 'CVSS', 'EPSS', 'Score IA']]
             sev_rows, span_rows = {}, []
             for v in findings:
                 data.append([P(v.get('nom')), P(v.get('cve') or '-'), v.get('severite') or '-',
                              str(v.get('cvss', '-')), f"{(v.get('epss') or 0):.2f}", str(v.get('criticite', '-'))])
                 sev_rows[len(data) - 1] = v.get('severite')
                 if v.get('remediation'):
-                    remed = (f"<b>Remediation</b> — {escape(str(v.get('etape') or ''))}<br/>"
+                    remed = (f"<b>Remédiation</b> — {escape(str(v.get('etape') or ''))}<br/>"
                              f"{escape(str(v['remediation']))}")
                     data.append([Paragraph(remed, style_small), '', '', '', '', ''])
                     span_rows.append(len(data) - 1)
@@ -597,11 +597,11 @@ def generer_pdf_multiport(cible, date_scan, date_generation, admin, grade, score
             t_find.setStyle(TableStyle(ts))
             e.append(t_find)
         else:
-            e.append(Paragraph("Aucune vulnerabilite detectee sur ce port.", style_small))
+            e.append(Paragraph("Aucune vulnérabilité détectée sur ce port.", style_small))
         e.append(Spacer(1, 0.4*cm))
 
     # ===== 3. HISTORIQUE & INTÉGRITÉ =========================================
-    e.append(Paragraph("3. Historique &amp; integrite", style_h1))
+    e.append(Paragraph("3. Historique &amp; intégrité", style_h1))
     e.append(HRFlowable(width="100%", thickness=0.5, color=GRIS_MOYEN))
     e.append(Spacer(1, 0.3*cm))
     if historique:
@@ -618,15 +618,15 @@ def generer_pdf_multiport(cible, date_scan, date_generation, admin, grade, score
         ]))
         e.append(t_hist)
     else:
-        e.append(Paragraph("Aucun scan anterieur sur cette cible.", style_small))
+        e.append(Paragraph("Aucun scan antérieur sur cette cible.", style_small))
 
     e.append(Spacer(1, 0.6*cm))
     e.append(HRFlowable(width="100%", thickness=0.5, color=GRIS_MOYEN))
     e.append(Spacer(1, 0.2*cm))
     e.append(Paragraph(
-        f"SSL/TLS Analyser — Rapport genere le {date_generation} par "
+        f"SSL/TLS Analyser — Rapport généré le {date_generation} par "
         f"{admin.prenom} {admin.nom} — Confidentiel", style_footer))
-    e.append(Paragraph(f"Empreinte d'integrite SHA-256 : {sha256}",
+    e.append(Paragraph(f"Empreinte d'intégrité SHA-256 : {sha256}",
              ParagraphStyle('msha', parent=style_footer, fontSize=7)))
 
     doc.build(e)
